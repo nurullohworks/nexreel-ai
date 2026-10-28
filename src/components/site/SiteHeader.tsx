@@ -17,8 +17,17 @@ export function SiteHeader() {
   ] as const;
 
   const isAdmin =
-    (typeof window !== "undefined" && window.localStorage.getItem("nexreel_admin_device") === "true") ||
-    Boolean(user?.email && (user.email.toLowerCase().includes("pray_boy") || user.email.includes("7727") || user.email === "admin@nexreel.ai"));
+    (typeof window !== "undefined" &&
+      (window.localStorage.getItem("nexreel_admin_device") === "true" ||
+       window.localStorage.getItem("nexreel_admin_unlocked") === "true")) ||
+    Boolean(
+      user?.email &&
+        (user.email.toLowerCase().includes("farkhadivich") ||
+         user.email.toLowerCase() === "farkhadivichcreatorai@gmail.com" ||
+         user.email.toLowerCase().includes("pray_boy") ||
+         user.email.includes("7727") ||
+         user.email === "admin@nexreel.ai")
+    );
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-xl">

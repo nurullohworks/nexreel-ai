@@ -39,26 +39,36 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
+  const isAdmin =
+    (typeof window !== "undefined" &&
+      (window.localStorage.getItem("nexreel_admin_device") === "true" ||
+       window.localStorage.getItem("nexreel_admin_unlocked") === "true")) ||
+    Boolean(
+      user?.email &&
+        (user.email.toLowerCase().includes("farkhadivich") ||
+         user.email.toLowerCase() === "farkhadivichcreatorai@gmail.com" ||
+         user.email.toLowerCase().includes("pray_boy") ||
+         user.email.includes("7727") ||
+         user.email === "admin@nexreel.ai")
+    );
+
   const nav = [
     { to: "/analyze", label: t("nav_analyze", "Tahlil qilish"), icon: Upload, highlight: true },
     { to: "/dashboard", label: t("nav_dashboard", "Boshqaruv"), icon: LayoutDashboard },
     { to: "/accounts", label: t("nav_accounts", "Akkauntlar"), icon: BarChart3 },
     { to: "/reports", label: t("nav_reports", "Hisobotlar"), icon: FileText },
     { to: "/history", label: t("nav_history", "Tarix"), icon: History },
-  ] as const;
+    ...(isAdmin ? [{ to: "/admin", label: t("nav_admin_panel", "Admin Panel"), icon: ShieldCheck, highlight: false }] : []),
+  ];
 
   // Agar foydalanuvchi bir marta kirsa yoki sessiya bo'lsa, uni to'xtatmaymiz - doimiy ochiq turadi
   useEffect(() => {
     if (hydrated && !user) {
-      signIn("creator@nexreel.ai", "Creator");
+      signIn("farkhadivichcreatorai@gmail.com", "Farkhadivich");
     }
   }, [hydrated, user, signIn]);
 
   const activeAnnouncement = announcements?.find((a) => a.isActive);
-
-  const isAdmin =
-    (typeof window !== "undefined" && window.localStorage.getItem("nexreel_admin_device") === "true") ||
-    Boolean(user?.email && (user.email.toLowerCase().includes("pray_boy") || user.email.includes("7727") || user.email === "admin@nexreel.ai"));
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-cyan-500/30 selection:text-cyan-200">

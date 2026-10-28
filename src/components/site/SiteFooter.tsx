@@ -12,11 +12,11 @@ const columns: { title: string; items: { label: string; to?: string }[] }[] = [
     ],
   },
   {
-    title: "Algoritmlar",
+    title: "Tahlil signallari",
     items: [
       { label: "Meta Reels 5 Drayveri" },
-      { label: "LiveDune Bozor Benchmarki" },
-      { label: "Gemini 2.0 Flash Dvigateli" },
+      { label: "Video tuzilmasi va pacing" },
+      { label: "Auditoriya va kontent qiymati" },
     ],
   },
   {
@@ -32,17 +32,17 @@ export function SiteFooter() {
         <div>
           <Logo withTagline />
           <p className="mt-4 max-w-xs text-xs leading-relaxed text-muted-foreground">
-            NEXREEL AI — Instagram Reels reyting signallari, LiveDune benchmarklari va video tahlili asosida ishlovchi sun'iy intellekt platformasi.
+            NEXREEL AI — ochiq Instagram signallari va video tahlili asosidagi platforma. Tahlil ballari kelajakdagi ko‘rishlarni kafolatlamaydi; Meta’ning xususiy algoritmiga kirish mavjud emas.
           </p>
         </div>
         {columns.map((col) => (
           <div key={col.title}>
-            <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400/80">{col.title}</h3>
+            <h3 className="text-xs uppercase font-mono font-bold text-primary/80">{col.title}</h3>
             <ul className="mt-4 space-y-2.5 text-xs">
               {col.items.map((item) => (
                 <li key={item.label}>
                   {item.to ? (
-                    <Link to={item.to} className="text-muted-foreground transition-colors hover:text-cyan-400">
+                    <Link to={item.to} className="text-muted-foreground transition-colors hover:text-primary">
                       {item.label}
                     </Link>
                   ) : (

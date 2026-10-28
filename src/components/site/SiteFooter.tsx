@@ -9,7 +9,6 @@ const columns: { title: string; items: { label: string; to?: string; href?: stri
       { label: "Instagram Akkaunt", to: "/accounts" },
       { label: "Tariflar", to: "/pricing" },
       { label: "Tahlillar Tarixi", to: "/history" },
-      { label: "Admin Panel (PIN)", to: "/admin" },
     ],
   },
   {

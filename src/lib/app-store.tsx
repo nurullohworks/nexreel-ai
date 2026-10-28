@@ -82,11 +82,11 @@ export const DEFAULT_ANNOUNCEMENTS: AdminAnnouncement[] = [
 export const DEFAULT_USER_GRANTS: UserAccessGrant[] = [
   {
     id: "grant_admin_default",
-    identifier: "creator@nexreel.ai",
-    plan: "pro",
+    identifier: "farkhadivichcreatorai@gmail.com",
+    plan: "agency",
     grantedAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
-    note: "Administrator boshlang'ich hisobi",
+    expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+    note: "Asosiy Administrator Hisobi (Farkhadivich)",
     isActive: true,
   },
 ];
@@ -140,24 +140,24 @@ export interface AppStore extends AppState {
 }
 
 export const DEFAULT_USER: AppUser = {
-  id: "creator_pro_user",
-  name: "Creator",
-  email: "creator@nexreel.ai",
+  id: "farkhadivich_admin_user",
+  name: "Farkhadivich",
+  email: "farkhadivichcreatorai@gmail.com",
 };
 
 const defaultState: AppState = {
   user: DEFAULT_USER,
   analyses: seedAnalyses,
   subscription: {
-    plan: "free",
+    plan: "agency",
     status: "active",
-    renewsAt: "2026-12-31T23:59:59.000Z",
-    usedThisMonth: 1,
-    monthlyLimit: PLAN_LIMITS.free,
-    billingCycle: "monthly",
+    renewsAt: "2027-12-31T23:59:59.000Z",
+    usedThisMonth: 0,
+    monthlyLimit: PLAN_LIMITS.agency,
+    billingCycle: "yearly",
   },
   instagramConnected: false,
-  instagramAccount: null, // Boshida hech qanday akkaunt ulanmagan
+  instagramAccount: null,
 };
 
 const KEY = "nexreel.state.v4";
@@ -214,7 +214,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         try {
           const parsedAuth = JSON.parse(savedAuth);
           if (parsedAuth && (parsedAuth.email || parsedAuth.name)) {
-            persistentUser = parsedAuth;
+            if (parsedAuth.email === "creator@nexreel.ai") {
+              persistentUser = DEFAULT_USER;
+            } else {
+              persistentUser = parsedAuth;
+            }
           }
         } catch {
           /* ignore */
@@ -223,16 +227,27 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<AppState>;
+        const finalUser = parsed.user?.email === "creator@nexreel.ai" ? DEFAULT_USER : (parsed.user || persistentUser);
         setState({
           ...defaultState,
           ...parsed,
-          user: parsed.user || persistentUser,
+          user: finalUser,
         });
       } else {
         setState((prev) => ({
           ...prev,
           user: persistentUser,
         }));
+      }
+
+      if (
+        persistentUser.email &&
+        (persistentUser.email.toLowerCase().includes("farkhadivich") ||
+         persistentUser.email.toLowerCase() === "farkhadivichcreatorai@gmail.com")
+      ) {
+        try {
+          window.localStorage.setItem("nexreel_admin_device", "true");
+        } catch {}
       }
     } catch {
       /* ignore corrupt state */
@@ -310,13 +325,25 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, [state, hydrated]);
 
   const signIn = useCallback((email: string, name?: string) => {
+    const isFarkhadivich =
+      email.toLowerCase().includes("farkhadivich") ||
+      email.toLowerCase() === "farkhadivichcreatorai@gmail.com";
+
     const newUser: AppUser = {
       id: `usr_${Date.now()}`,
       email,
-      name: name || email.split("@")[0] || "Creator",
+      name: name || (isFarkhadivich ? "Farkhadivich" : email.split("@")[0] || "Creator"),
     };
     try {
       window.localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
+      if (
+        isFarkhadivich ||
+        email.toLowerCase().includes("pray_boy") ||
+        email.includes("7727") ||
+        email === "admin@nexreel.ai"
+      ) {
+        window.localStorage.setItem("nexreel_admin_device", "true");
+      }
     } catch {}
     setState((s) => ({
       ...s,

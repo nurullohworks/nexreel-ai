@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppStoreProvider } from "@/lib/app-store";
+import { I18nProvider } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -79,17 +80,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "REELPREDICT — AI asosidagi Instagram samaradorlik tahlili" },
+      { title: "NEXREEL AI — Instagram Reels Kadr-ba-Kadr Neyron Audit" },
       {
         name: "description",
         content:
-          "Instagram Reels’ingizni joylashtirishdan oldin AI baholash, vaqt tahlili va ustuvor tuzatishlar bilan aniq tahlil natijasini oling.",
+          "Instagram Reels’ingizni joylashtirishdan oldin neyron audit, vaqt tahlili va aniq algoritmik tuzatishlar yordamida tahlil qiling.",
       },
-      { name: "author", content: "REELPREDICT" },
-      { property: "og:title", content: "REELPREDICT" },
+      { name: "author", content: "NEXREEL AI" },
+      { property: "og:title", content: "NEXREEL AI" },
       {
         property: "og:description",
-        content: "AI asosidagi Instagram samaradorlik tahlili.",
+        content: "Meta Reels algoritmi va LiveDune bozor benchmarklari asosidagi aniq tahlil platformasi.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -100,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -131,9 +132,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppStoreProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="top-right" />
+        <I18nProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster position="top-right" />
+        </I18nProvider>
       </AppStoreProvider>
     </QueryClientProvider>
   );

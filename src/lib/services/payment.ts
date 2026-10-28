@@ -1,4 +1,4 @@
-﻿import type { PlanId } from "../types";
+import type { PlanId } from "../types";
 
 export interface PaymentProviderConfig {
   clickMerchantId?: string;
@@ -39,7 +39,32 @@ export const PLAN_PRICING: Record<PlanId, PlanPricing> = {
   },
 };
 
+export const TELEGRAM_PAYMENT = {
+  username: "pray_boy",
+  phone: "+998937607727",
+  displayPhone: "+998 93 760 77 27",
+  telegramUrl: "https://t.me/pray_boy",
+};
+
 export class PaymentService {
+  /**
+   * Generates Telegram direct payment link with prefilled order details
+   */
+  static generateTelegramUrl(planId: PlanId, userEmail?: string): string {
+    const plan = PLAN_PRICING[planId] || PLAN_PRICING.pro;
+    const email = userEmail || "creator@nexreel.ai";
+    const text = `Assalomu alaykum! Men NEXREEL AI platformasida "${plan.name}" tarifiga obuna sotib olmoqchiman.
+
+📌 Tanlangan tarif: ${plan.name}
+💰 To'lov miqdori: ${plan.priceUzSum.toLocaleString()} so'm / oyiga ($${plan.priceUsd})
+⚡ Imkoniyat: ${plan.analysisLimit} ta AI video tahlili
+👤 Akkaunt: ${email}
+
+Iltimos, to'lov uchun karta raqamini bering va obunani faollashtirib bering.`;
+
+    return `https://t.me/${TELEGRAM_PAYMENT.username}?text=${encodeURIComponent(text)}`;
+  }
+
   /**
    * Generates a Click checkout redirect URL
    */
@@ -74,7 +99,6 @@ export class PaymentService {
    */
   static async initiateStripeCheckout(planId: PlanId, userEmail?: string): Promise<{ url: string }> {
     const plan = PLAN_PRICING[planId];
-    // Agar real backend Stripe webhook o'rnatilgan bo'lsa:
     try {
       const resp = await fetch("/api/create-checkout-session", {
         method: "POST",
@@ -89,7 +113,6 @@ export class PaymentService {
       console.log("Direct Stripe session redirect");
     }
 
-    // Direct simulation link
     return { url: `/billing?payment=success&plan=${planId}` };
   }
 }

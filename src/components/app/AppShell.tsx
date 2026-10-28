@@ -53,6 +53,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const activeAnnouncement = announcements?.find((a) => a.isActive);
 
+  const isAdmin =
+    (typeof window !== "undefined" && window.localStorage.getItem("nexreel_admin_device") === "true") ||
+    Boolean(user?.email && (user.email.toLowerCase().includes("pray_boy") || user.email.includes("7727") || user.email === "admin@nexreel.ai"));
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* 1. Subscription Expiry Warning Banner */}
@@ -160,18 +164,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="opacity-70">({subscription.usedThisMonth}/{subscription.monthlyLimit})</span>
             </Link>
 
-            {/* Admin Console Link */}
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2.5 text-[11px] font-mono font-bold text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30"
-            >
-              <Link to="/admin" aria-label="Admin Panel">
-                <ShieldCheck className="h-3.5 w-3.5 mr-1 text-cyan-400" />
-                <span className="hidden sm:inline">Admin</span>
-              </Link>
-            </Button>
+            {/* Admin Console Link (Only for Admin) */}
+            {isAdmin && (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 text-[11px] font-mono font-bold text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30"
+              >
+                <Link to="/admin" aria-label="Admin Panel">
+                  <ShieldCheck className="h-3.5 w-3.5 mr-1 text-cyan-400" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Link>
+              </Button>
+            )}
 
             <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-surface-2">
               <Link to="/pricing" aria-label="Tariflar">
@@ -205,7 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile bottom navigation */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/90 backdrop-blur-xl md:hidden">
-        <div className="grid grid-cols-6 py-1">
+        <div className={`grid ${isAdmin ? "grid-cols-6" : "grid-cols-5"} py-1`}>
           {nav.map((item) => (
             <Link
               key={item.to}
@@ -217,14 +223,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               {item.label}
             </Link>
           ))}
-          <Link
-            to="/admin"
-            className="flex flex-col items-center gap-1 py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-cyan-400"
-            activeProps={{ className: "text-cyan-400 font-bold" }}
-          >
-            <ShieldCheck className="h-4 w-4 text-cyan-400" />
-            Admin
-          </Link>
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="flex flex-col items-center gap-1 py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-cyan-400"
+              activeProps={{ className: "text-cyan-400 font-bold" }}
+            >
+              <ShieldCheck className="h-4 w-4 text-cyan-400" />
+              Admin
+            </Link>
+          )}
         </div>
       </nav>
     </div>

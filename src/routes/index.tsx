@@ -1,280 +1,140 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Activity,
-  BarChart3,
-  Flame,
-  ShieldCheck,
-  Sparkles,
-  Upload,
-  Zap,
-  CheckCircle2,
-  Cpu,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, AudioLines, Check, Eye, Gauge, MessageCircleMore, Play, Repeat2, RotateCcw, ShieldCheck, Sparkles, Terminal, TimerReset, X, Zap } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Button } from "@/components/ui/button";
-import { MetricBar } from "@/components/data/MetricBar";
-import { ScoreRing } from "@/components/data/ScoreRing";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "NEXREEL AI — Instagram Reels Virallik & Algoritmik Tahlili" },
-      {
-        name: "description",
-        content:
-          "Reels videongizni yuklang. NEXREEL AI Meta algoritmi (DM Shares, 3s Hook, Loop) va LiveDune benchmarklari asosida videoning uchish yoki uchmasligini joylashdan oldin aniqlaydi.",
-      },
-      { property: "og:title", content: "NEXREEL AI — Joylashdan Oldin Virallikni Biling" },
-      {
-        property: "og:description",
-        content:
-          "AI asosidagi Instagram samaradorlik tahlili: aniq algoritmik ball, soniyalar bo'yicha kamchiliklar va bashorat.",
-      },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "NEXREEL AI — Reels uchun aniq tahlil natijasi" },
+    { name: "description", content: "Reels video tuzilmasi, hook, retention va auditoriya signallari bo‘yicha aniq tahlil natijasini oling." },
+    { property: "og:title", content: "NEXREEL AI — Cyber Command Deck" },
+    { property: "og:description", content: "Instagram’ning ochiq signallari bo‘yicha Reels tahlili, kadrlar xaritasi va amaliy tavsiyalar." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
   component: Landing,
 });
 
-const heroMetrics = [
-  { label: "0-3s Hook Kuchi", score: 92 },
-  { label: "DM Shares (Do'stlarga yuborish)", score: 88 },
-  { label: "To'liq ko'rish (Loop Faktor)", score: 84 },
-  { label: "Vizual sifat & Pacing", score: 90 },
-  { label: "Save & Qimmatli qiymat", score: 79 },
-  { label: "Nisha auditoriyasiga moslik", score: 86 },
+const terminalLines = [
+  { code: "SYS", text: "Namuna video qabul qilindi", tone: "text-signal" },
+  { code: "KADR", text: "Video tuzilmasi tekshirilmoqda...", tone: "text-primary" },
+  { code: "HOOK", text: "0–3s: kuchli kirish aniqlandi", tone: "text-signal" },
+  { code: "LOOP", text: "Yakun va boshlanish mosligi tekshirildi", tone: "text-primary" },
+  { code: "OK", text: "Aniq tahlil natijasi shakllandi", tone: "text-success" },
 ];
-
-const audiences = [
-  "Rilskreytorlar",
-  "SMM mutaxassislari",
-  "Biznes egalari",
-  "Mobilograflar",
-  "Ekspertlar",
-  "Agentliklar",
+const comparisons = [
+  ["Qaror manbai", "Subyektiv fikr", "Kontent signallari"],
+  ["Hook tekshiruvi", "Umumiy taassurot", "0–3 soniya tahlili"],
+  ["Kamchiliklar", "Tarqoq qaydlar", "Vaqt bo‘yicha xarita"],
+  ["Keyingi qadam", "Sinab ko‘rish", "Ustuvor tavsiyalar"],
 ];
-
-const steps = [
-  { n: "01", title: "Video Yuklash", body: "500MB gacha bo'lgan Reels videongizni bir zumda tashlang." },
-  { n: "02", title: "Meta Algoritm Tahlili", body: "AI 5 ta asosiy ranking drayveri va nishangiz benchmarklari bo'yicha tahlil qiladi." },
-  { n: "03", title: "Virallik Hukmi", body: "Video uchadimi, o'rtacha qoladimi yoki bloklanadimi — aniq xulosani oling." },
-  { n: "04", title: "Tuzatish & Joylash", body: "Soniyalar bo'yicha ko'rsatilgan kamchiliklarni to'g'rilab, maksimal qamrovga erishing." },
-];
-
-const featureGroups = [
-  {
-    icon: Sparkles,
-    title: "Meta 5 Ranking Drayveri",
-    items: [
-      "0-3 soniyalik Hook kuchi",
-      "DM Shares per Reach (Meta #1 faktor)",
-      "Loop & Qayta ko'rish chastotasi",
-      "Save & Qimmatli maslahat qiymati",
-      "Pacing & Har 2s dinamikasi",
-    ],
-  },
-  {
-    icon: Cpu,
-    title: "LiveDune Bozor Benchmarklari",
-    items: [
-      "Nisha bo'yicha o'rtacha ER",
-      "Top 10% viral videolar bilan solishtirish",
-      "Akkauntingiz o'rtacha ko'rishlariga moslash",
-      "Watermark (suv belgisi) jazosi xavfi",
-      "Auditoriya drop-off nuqtalari",
-    ],
-  },
-  {
-    icon: Flame,
-    title: "Aniq Bashorat & Diagnostika",
-    items: [
-      "Kutilayotgan ko'rishlar oralig'i (Views)",
-      "Explore sahifasiga chiqish ehtimoli",
-      "Soniyalar bo'yicha aniq kamchiliklar",
-      "Joylashdan keyingi aniqlikni tekshirish",
-      "PDF hisobot eksport qilish",
-    ],
-  },
+const drivers = [
+  { id: "01", title: "DM ulashish signali", body: "Do‘stga yuborish qiymati: kontent suhbat boshlaydimi, fikr uyg‘otadimi va boshqalarga foyda beradimi?", icon: MessageCircleMore, score: 88 },
+  { id: "02", title: "0–3s Hook kuchi", body: "Birinchi kadr, kirish matni va diqqatni ushlash kuchi.", icon: Zap, score: 92 },
+  { id: "03", title: "Retention & pacing", body: "Sahna almashuvi va tomoshabinni ushlab turadigan tuzilma.", icon: TimerReset, score: 84 },
+  { id: "04", title: "Loop & qayta ko‘rish", body: "Video yakuni va boshlanishining uzluksiz bog‘lanishi.", icon: Repeat2, score: 79 },
+  { id: "05", title: "Saqlash & qiymat", body: "Auditoriya uchun foyda, original g‘oya va aniq mazmun.", icon: Sparkles, score: 86 },
 ];
 
 function Landing() {
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="home-deck min-h-screen bg-background text-foreground selection:bg-primary/30">
       <SiteHeader />
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-border/70">
-        <div className="halo pointer-events-none absolute inset-0" />
-        <div className="grid-lines pointer-events-none absolute inset-0 opacity-[0.25]" />
-        
-        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pb-20 pt-16 md:pt-24">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-cyan-300 backdrop-blur-md shadow-sm">
-              <Zap className="h-3.5 w-3.5 text-cyan-400 animate-pulse" /> Meta Algoritmi & LiveDune Benchmark Dvigateli
-            </span>
-            
-            <h1 className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight md:text-6xl lg:text-7xl">
-              Joylashdan Oldin <span className="gradient-text">Virallikni Biling.</span>
-            </h1>
-            
-            <p className="mt-5 text-base sm:text-lg font-medium text-foreground/90 leading-relaxed">
-              Videongiz Explore-ga chiqadimi yoki to'xtab qoladimi? Nashr etishdan oldin aniq bilib oling.
-            </p>
-            
-            <p className="mx-auto mt-3 max-w-2xl text-xs sm:text-sm leading-relaxed text-muted-foreground">
-              NEXREEL AI videongizni <strong>Meta Reels algoritmi (DM Shares, 3s Hook, Loop)</strong> hamda <strong>LiveDune benchmarklari</strong> bilan taqqoslab, soniyalar bo'yicha aniq kamchiliklarni ko'rsatadi.
-            </p>
-
-            <div className="mt-8 flex flex-col items-center justify-center gap-3.5 sm:flex-row">
-              <Button asChild size="lg" className="w-full sm:w-auto shadow-xl shadow-cyan-500/25 font-bold py-6 px-8 text-sm bg-gradient-to-r from-cyan-400 to-emerald-400 hover:opacity-95 text-slate-950">
-                <Link to="/analyze">
-                  Reelsni Tekshirishni Boshlash <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto border-border/80 text-xs font-semibold py-6 px-6 hover:bg-surface-2">
-                <a href="#how-it-works">Qanday Ishlaydi?</a>
-              </Button>
-            </div>
-          </div>
-
-          {/* Interactive Preview Card */}
-          <div className="animate-rise mt-14 rounded-3xl border border-border/80 bg-surface/60 p-2 shadow-[var(--shadow-elevated)] backdrop-blur-xl">
-            <div className="rounded-2xl border border-border/70 bg-card/90 p-6 md:p-8">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                    <Flame className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">reel_diagnostika_namuna.mp4</p>
-                    <p className="text-[11px] text-muted-foreground font-mono">Davomiyligi: 22s · SMM & Biznes</p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-mono font-bold text-emerald-300">
-                  🚀 UCHADI (92% Virallik)
-                </span>
+      <main>
+        <section className="relative overflow-hidden border-b border-border">
+          <div className="command-grid pointer-events-none absolute inset-0 opacity-30" />
+          <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-10 sm:px-6 md:pb-14 md:pt-14">
+            <div className="flex flex-col justify-between gap-6 border-b border-primary/25 pb-7 md:flex-row md:items-end">
+              <div>
+                <p className="mb-3 flex items-center gap-2 font-mono text-[10px] text-signal"><span className="h-1.5 w-1.5 rounded-full bg-signal" /> REELS KONTENT INTELLEKTI / 01</p>
+                <h1 className="font-display text-4xl font-bold leading-tight md:text-5xl">NEXREEL <span className="text-primary">AI</span></h1>
+                <p className="mt-3 font-display text-xl font-medium md:text-2xl">Joylashdan oldin. Aniq tahlil natijasi.</p>
               </div>
-
-              <div className="grid gap-8 pt-7 md:grid-cols-[220px_1fr]">
-                <div className="flex flex-col items-center gap-4">
-                  <ScoreRing score={92} size={150} />
-                  <div className="grid w-full grid-cols-3 gap-2 text-center md:grid-cols-1">
-                    <Cell label="Virallik" value="Yuqori" highlight />
-                    <Cell label="Taxminiy ko'rishlar" value="1.8K – 3.6K" />
-                    <Cell label="Ishonch darajasi" value="94%" />
-                  </div>
-                </div>
-                <div className="grid content-start gap-x-8 gap-y-5 sm:grid-cols-2">
-                  {heroMetrics.map((m) => (
-                    <MetricBar key={m.label} label={m.label} score={m.score} suffix="%" />
-                  ))}
+              <div className="max-w-sm md:text-right">
+                <p className="text-sm leading-6 text-muted-foreground">Hook, video tuzilmasi va auditoriya signallarini yagona boshqaruv markazida tekshiring.</p>
+                <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
+                  <Button asChild size="lg" className="font-semibold"><Link to="/analyze">Videoni tahlil qilish <ArrowRight /></Link></Button>
+                  <Button asChild variant="outline" size="lg"><a href="#drivers">5 drayver <Gauge /></a></Button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Target Audiences */}
-      <section className="border-b border-border/70 py-12 bg-surface/30">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center">
-          <p className="text-xs uppercase font-mono tracking-widest text-muted-foreground font-semibold">
-            Kimlar uchun mo'ljallangan?
-          </p>
-          <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
-            {audiences.map((a) => (
-              <div
-                key={a}
-                className="rounded-xl border border-border/70 bg-card/60 px-3.5 py-3 text-xs font-semibold text-foreground/80 hover:border-cyan-500/40 hover:text-cyan-300 transition-colors"
-              >
-                {a}
+            <div className="mt-6 grid items-stretch gap-5 lg:grid-cols-3">
+              <LiveTerminal />
+              <SignalCore />
+              <div id="comparison" className="command-panel overflow-hidden rounded-lg">
+                <div className="border-b border-border px-5 py-4"><h2 className="font-display text-sm font-semibold">Eski usul vs <span className="text-primary">NEXREEL AI</span></h2><p className="mt-1 text-[11px] text-muted-foreground">Qarorlarni dalil bilan asoslang.</p></div>
+                <table className="w-full table-fixed text-left text-[11px]">
+                  <caption className="sr-only">Eski usul va NEXREEL AI taqqoslash jadvali</caption>
+                  <thead className="bg-surface/70 text-muted-foreground"><tr><th className="p-3 font-medium">Mezon</th><th className="p-3 font-medium">Eski usul</th><th className="p-3 font-medium text-primary">NEXREEL AI</th></tr></thead>
+                  <tbody>{comparisons.map(([label, oldWay, newWay]) => <tr key={label} className="border-t border-border/70"><th scope="row" className="p-3 font-medium">{label}</th><td className="p-3 text-muted-foreground"><X className="mb-1 h-3 w-3 text-destructive" />{oldWay}</td><td className="p-3 text-signal"><Check className="mb-1 h-3 w-3" />{newWay}</td></tr>)}</tbody>
+                </table>
               </div>
-            ))}
+            </div>
+            <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-border pt-4 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-signal" />Ochiq Instagram signallari asosida</span>
+              <span>Namuna tahlil · real akkaunt statistikasi emas</span>
+              <span className="font-mono text-primary">NEX_CORE / TAYYOR</span>
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section id="how-it-works" className="border-b border-border/70 py-16 md:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto">
-            <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400">Oddiy & Tezkor</span>
-            <h2 className="mt-2 text-2xl font-bold md:text-4xl">Qanday ishlaydi?</h2>
-            <p className="mt-2 text-xs text-muted-foreground">4 oddiy qadamda videongizni maksimal natijaga tayyorlang</p>
+        </section>
+        <section id="drivers" className="border-b border-border py-12 md:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+              <div><p className="font-mono text-[10px] text-primary">SIGNAL ARXITEKTURASI</p><h2 className="mt-2 font-display text-2xl font-semibold md:text-3xl">Meta · 5 drayver. Bitta tahlil.</h2></div>
+              <p className="max-w-sm text-xs leading-5 text-muted-foreground">Ochiq hujjatlashtirilgan signallar va video ma’lumotlari. Meta’ning xususiy algoritmiga kirish da’vo qilinmaydi.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+              {drivers.map((driver, index) => <article key={driver.id} className={`command-panel rounded-lg p-5 transition-transform motion-safe:hover:-translate-y-1 ${index === 0 ? "md:row-span-2 lg:col-span-2" : "lg:col-span-2"}`}>
+                <div className="flex items-center justify-between"><driver.icon className={`h-6 w-6 ${index === 0 ? "text-primary" : "text-signal"}`} /><span className="font-mono text-[10px] text-muted-foreground">DRAYVER_{driver.id}</span></div>
+                <h3 className={`mt-5 font-display font-semibold ${index === 0 ? "text-2xl" : "text-base"}`}>{driver.title}</h3>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{driver.body}</p>
+                {index === 0 && <div className="my-7 flex items-center justify-center"><LogoMark className="h-20 w-20" /></div>}
+                <div className="mt-5 flex items-center justify-between border-t border-border pt-3"><span className="font-mono text-[9px] text-muted-foreground">NAMUNA BALI</span><span className="font-mono text-sm text-signal">{driver.score}<span className="text-muted-foreground"> / 100</span></span></div>
+              </article>)}
+            </div>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-            {steps.map((s) => (
-              <div key={s.n} className="surface-card p-6 relative group hover:border-cyan-500/40 transition-all">
-                <span className="font-mono text-sm font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">{s.n}</span>
-                <h3 className="mt-4 text-base font-bold text-foreground">{s.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{s.body}</p>
-              </div>
-            ))}
+        </section>
+        <section className="py-14 md:py-20">
+          <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 sm:px-6 md:flex-row md:items-center">
+            <div><p className="font-mono text-[10px] text-primary">KEYINGI QADAM / YUKLASH</p><h2 className="mt-3 font-display text-2xl font-semibold md:text-3xl">Keyingi Reels’ni kuchliroq tayyorlang.</h2><p className="mt-3 text-sm text-muted-foreground">Aniq tahlil natijasi — kadrlar xaritasi va ustuvor tavsiyalar bilan.</p></div>
+            <Button asChild size="lg"><Link to="/analyze">Tahlilni boshlash <Play /></Link></Button>
           </div>
-        </div>
-      </section>
-
-      {/* Feature Groups */}
-      <section className="border-b border-border/70 py-16 md:py-20 bg-surface/20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold md:text-4xl">
-              Bitta Reels. 5 ta Algoritm Drayveri. Aniq Natija.
-            </h2>
-          </div>
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            {featureGroups.map((g) => (
-              <div key={g.title} className="surface-card p-6 hover:border-cyan-500/30 transition-all">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
-                  <g.icon className="h-5 w-5" />
-                </div>
-                <h3 className="mt-4 text-sm font-bold text-foreground">
-                  {g.title}
-                </h3>
-                <ul className="mt-4 space-y-2.5 text-xs text-muted-foreground">
-                  {g.items.map((i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-foreground/90">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Bottom CTA */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="halo pointer-events-none absolute inset-0 opacity-40" />
-        <div className="relative mx-auto max-w-3xl px-4 sm:px-6 text-center">
-          <h2 className="text-3xl font-extrabold md:text-5xl tracking-tight">Taxmin qilishni to'xtating.</h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
-            Instagram Reels algoritmi bo'yicha videolaringizni professional darajada tekshiring.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="w-full sm:w-auto shadow-xl shadow-cyan-500/25 font-bold py-6 px-8 text-sm bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950">
-              <Link to="/analyze">Birinchi Videoni Tahlil Qilish</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto text-xs font-semibold py-6 px-6">
-              <Link to="/pricing">Tariflar & Obuna</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
+        </section>
+      </main>
       <SiteFooter />
     </div>
   );
 }
 
-function Cell({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="rounded-xl border border-border/70 bg-surface/50 p-2.5">
-      <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">{label}</p>
-      <p className={`mt-0.5 text-xs font-bold ${highlight ? "text-cyan-400" : "text-foreground"}`}>{value}</p>
+function LiveTerminal() {
+  const [visibleCount, setVisibleCount] = useState(1);
+  const [run, setRun] = useState(0);
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) { setVisibleCount(terminalLines.length); return; }
+    setVisibleCount(1);
+    const timer = window.setInterval(() => setVisibleCount(count => Math.min(count + 1, terminalLines.length)), 1100);
+    return () => window.clearInterval(timer);
+  }, [run]);
+  return <div className="command-panel relative flex min-h-[330px] flex-col overflow-hidden rounded-lg p-5">
+    <div className="scanline absolute left-0 top-0 h-px w-full" />
+    <div className="flex items-center justify-between border-b border-border pb-3"><div><h2 className="flex items-center gap-2 font-mono text-[10px] text-signal"><Terminal className="h-3.5 w-3.5" /> JONLI TAHLIL TERMINALI</h2><p className="mt-1 text-[10px] text-muted-foreground">reel_namuna.mp4 · 22s</p></div><Button variant="ghost" size="icon" className="h-7 w-7" title="Namuna tahlilni qayta ko‘rsatish" aria-label="Namuna tahlilni qayta ko‘rsatish" onClick={() => setRun(value => value + 1)}><RotateCcw /></Button></div>
+    <div className="mt-5 flex-1 space-y-4 font-mono text-[10px]">{terminalLines.map((line, index) => <div key={line.code} className={`flex gap-2 transition-opacity duration-500 ${index < visibleCount ? "opacity-100" : "opacity-0"}`}><span className={line.tone}>[{line.code}]</span><span className="text-foreground/80">{line.text}</span></div>)}<span className="block text-primary motion-safe:animate-pulse">▍</span></div>
+    <div className="mt-5 flex items-center justify-between border-t border-border pt-3 text-[9px] text-muted-foreground"><span>Namoyish rejimi</span><span className="text-signal">{visibleCount === terminalLines.length ? "YAKUNLANDI" : "TAHLIL QILINMOQDA"}</span></div>
+  </div>;
+}
+
+function SignalCore() {
+  return <div className="relative flex min-h-[330px] flex-col items-center justify-center overflow-hidden">
+    <div className="absolute h-72 w-72 rounded-full border border-dashed border-signal/25 motion-safe:animate-[spin_30s_linear_infinite]" />
+    <div className="absolute h-60 w-60 rounded-full border border-primary/25" />
+    <div className="signal-ring relative flex h-48 w-48 flex-col items-center justify-center rounded-full border-2 border-primary/60 bg-background">
+      <div className="absolute inset-3 rounded-full border border-signal/40" /><Eye className="mb-2 h-4 w-4 text-signal" /><span className="font-display text-5xl font-semibold">92<span className="text-lg text-primary">/100</span></span><span className="mt-2 font-mono text-[9px] text-primary">UMUMIY TAHLIL BALI</span>
     </div>
-  );
+    <div className="relative mt-9 flex gap-5 text-center"><div><p className="font-mono text-base text-signal">92</p><p className="text-[9px] text-muted-foreground">Hook</p></div><div><p className="font-mono text-base text-primary">84</p><p className="text-[9px] text-muted-foreground">Retention</p></div><div><p className="font-mono text-base text-signal">88</p><p className="text-[9px] text-muted-foreground">Ulashish</p></div></div>
+    <AudioLines className="absolute top-4 h-4 w-4 text-signal" />
+  </div>;
 }

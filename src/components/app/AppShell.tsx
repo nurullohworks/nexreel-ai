@@ -20,14 +20,8 @@ import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { TELEGRAM_PAYMENT } from "@/lib/services/payment";
-
-const nav = [
-  { to: "/analyze", label: "Tahlil qilish", icon: Upload, highlight: true },
-  { to: "/dashboard", label: "Boshqaruv", icon: LayoutDashboard },
-  { to: "/accounts", label: "Akkauntlar", icon: BarChart3 },
-  { to: "/reports", label: "Hisobotlar", icon: FileText },
-  { to: "/history", label: "Tarix", icon: History },
-] as const;
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const {
@@ -41,8 +35,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     isExpired,
     announcements,
   } = useAppStore();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+
+  const nav = [
+    { to: "/analyze", label: t("nav_analyze", "Tahlil qilish"), icon: Upload, highlight: true },
+    { to: "/dashboard", label: t("nav_dashboard", "Boshqaruv"), icon: LayoutDashboard },
+    { to: "/accounts", label: t("nav_accounts", "Akkauntlar"), icon: BarChart3 },
+    { to: "/reports", label: t("nav_reports", "Hisobotlar"), icon: FileText },
+    { to: "/history", label: t("nav_history", "Tarix"), icon: History },
+  ] as const;
 
   // Agar foydalanuvchi bir marta kirsa yoki sessiya bo'lsa, uni to'xtatmaymiz - doimiy ochiq turadi
   useEffect(() => {
@@ -154,7 +157,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Sleek, compact 3-language switcher */}
+            <LanguageSwitcher />
+
             <Link
               to="/pricing"
               className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-mono font-bold text-cyan-300 transition-all hover:bg-cyan-500/20"

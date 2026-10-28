@@ -169,6 +169,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/accounts'
     | '/analyze'
     | '/billing'

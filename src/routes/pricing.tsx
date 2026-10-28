@@ -9,6 +9,7 @@ import type { PlanId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PaymentModal } from "@/components/app/PaymentModal";
 import { TELEGRAM_PAYMENT } from "@/lib/services/payment";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -16,8 +17,7 @@ export const Route = createFileRoute("/pricing")({
       { title: "Tariflar & Narxlar — NEXREEL AI" },
       {
         name: "description",
-        content:
-          "Instagram samaradorlik tahlili uchun qulay narxlar: Bepul, Pro — 190,000 so'm/oy va Agency — 490,000 so'm/oy.",
+        content: "Instagram samaradorlik tahlili uchun qulay narxlar: Bepul, Pro va Agency.",
       },
       { property: "og:title", content: "NEXREEL AI Tariflari" },
       {
@@ -29,63 +29,64 @@ export const Route = createFileRoute("/pricing")({
   component: Pricing,
 });
 
-const plans: {
-  id: PlanId;
-  name: string;
-  monthlyUzSum: number;
-  monthlyUsd: number;
-  features: string[];
-  cta: string;
-  popular?: boolean;
-}[] = [
-  {
-    id: "free",
-    name: "Bepul",
-    monthlyUzSum: 0,
-    monthlyUsd: 0,
-    cta: "Bepul Boshlash",
-    features: ["Oyiga 2 ta tahlil", "Asosiy hisobot", "Asosiy hisob tahlili", "Cheklangan tarix"],
-  },
-  {
-    id: "pro",
-    name: "Pro Yaratuvchi",
-    monthlyUzSum: 190000,
-    monthlyUsd: 15,
-    cta: "Pro'ga O'tish",
-    popular: true,
-    features: [
-      "100 ta video tahlili",
-      "Ilg'or Gemini / Claude AI tahlili",
-      "Meta 5 drayverli diagnostika",
-      "LiveDune sohaviy benchmarklari",
-      "Batafsil timeline tavsiyalari",
-      "Tahlil tarixi va solishtirish",
-      "Ustuvor qayta ishlash",
-    ],
-  },
-  {
-    id: "agency",
-    name: "Agency & SMM",
-    monthlyUzSum: 490000,
-    monthlyUsd: 39,
-    cta: "Agency'ni Boshlash",
-    features: [
-      "500 ta video tahlili",
-      "Bir nechta Instagram hisoblari",
-      "Jamoaviy kirish imkoniyati",
-      "Mijozlar uchun PDF hisobotlar",
-      "Oq nishonli (White-label) brending",
-      "VIP texnik yordam",
-    ],
-  },
-];
-
 function Pricing() {
   const [yearly, setYearly] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("pro");
   const { user, setPlan, pricingConfig } = useAppStore();
+  const { t } = useI18n();
   const navigate = useNavigate();
+
+  const plans: {
+    id: PlanId;
+    name: string;
+    monthlyUzSum: number;
+    monthlyUsd: number;
+    features: string[];
+    cta: string;
+    popular?: boolean;
+  }[] = [
+    {
+      id: "free",
+      name: t("pricing_plan_free", "Bepul"),
+      monthlyUzSum: 0,
+      monthlyUsd: 0,
+      cta: t("pricing_cta_free", "Bepul Boshlash"),
+      features: ["Oyiga 2 ta tahlil", "Asosiy hisobot", "Asosiy hisob tahlili", "Cheklangan tarix"],
+    },
+    {
+      id: "pro",
+      name: t("pricing_plan_pro", "Pro Yaratuvchi"),
+      monthlyUzSum: 190000,
+      monthlyUsd: 15,
+      cta: t("pricing_cta_pro", "Pro'ga O'tish"),
+      popular: true,
+      features: [
+        "100 ta video tahlili",
+        "Ilg'or Gemini / Claude AI tahlili",
+        "Meta 5 drayverli diagnostika",
+        "LiveDune sohaviy benchmarklari",
+        "Batafsil timeline tavsiyalari",
+        "Tahlil tarixi va solishtirish",
+        "Ustuvor qayta ishlash",
+      ],
+    },
+    {
+      id: "agency",
+      name: t("pricing_plan_agency", "Agency & SMM"),
+      monthlyUzSum: 490000,
+      monthlyUsd: 39,
+      cta: t("pricing_cta_agency", "Agency'ni Boshlash"),
+      features: [
+        "500 ta video tahlili",
+        "Bir nechta Instagram hisoblari",
+        "Jamoaviy kirish imkoniyati",
+        "Mijozlar uchun PDF hisobotlar",
+        "Oq nishonli (White-label) brending",
+        "VIP texnik yordam",
+      ],
+    },
+  ];
 
   const choose = (id: PlanId) => {
     if (id === "free") {
@@ -103,9 +104,9 @@ function Pricing() {
       <section className="border-b border-border py-20">
         <div className="mx-auto max-w-6xl px-5">
           <div className="text-center">
-            <h1 className="text-4xl font-semibold md:text-5xl">Natija uchun mo'ljallangan narxlar.</h1>
+            <h1 className="text-4xl font-semibold md:text-5xl">{t("pricing_title", "Tariflar & Narxlar")}</h1>
             <p className="mt-4 text-sm text-muted-foreground max-w-2xl mx-auto">
-              Har bir tarif to'liq bashorat tizimini o'z ichiga oladi. To'lov to'g'ridan-to'g'ri Telegram orqali (@{TELEGRAM_PAYMENT.username}, {TELEGRAM_PAYMENT.displayPhone}) Click, Payme va kartalar bilan tezkor qabul qilinadi.
+              {t("pricing_desc", "Instagram Reels auditoriyasi va qamrovini kengaytirish uchun professional vositalar.")}
             </p>
 
             {/* Telegram Fast Banner */}
@@ -178,47 +179,44 @@ function Pricing() {
                   )}
                 >
                   {plan.popular ? (
-                    <span className="absolute -top-3 left-7 rounded-full bg-primary px-3 py-1 text-[10px] uppercase tracking-widest text-primary-foreground font-bold">
-                      Eng ommabop
+                    <span className="absolute -top-3 right-6 rounded-full bg-gradient-to-r from-primary to-accent px-3 py-0.5 text-xs font-semibold text-primary-foreground">
+                      {t("pricing_popular_badge", "ENG KO'P TANLANGAN")}
                     </span>
                   ) : null}
-                  <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-semibold">
-                    {planName}
-                  </h2>
-                  <div className="mt-4 flex flex-col">
-                    {plan.id === "free" ? (
-                      <span className="text-4xl font-bold">Bepul</span>
-                    ) : (
-                      <>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-extrabold">{priceSum.toLocaleString()} so'm</span>
-                          <span className="text-xs text-muted-foreground">/oy</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground mt-0.5">yoki ${priceUsd}/oy</span>
-                      </>
+
+                  <div className="flex items-baseline justify-between">
+                    <h2 className="text-xl font-semibold">{planName}</h2>
+                    <span className="text-xs text-muted-foreground font-mono">{planLimit} ta tahlil/oy</span>
+                  </div>
+
+                  <div className="mt-6 flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold tracking-tight">
+                      {priceSum === 0 ? "Bepul" : `${priceSum.toLocaleString()} so'm`}
+                    </span>
+                    {priceSum > 0 && (
+                      <span className="text-xs text-muted-foreground">/{t("pricing_month_unit", "oy")}</span>
                     )}
                   </div>
-                  {yearly && basePriceUzSum > 0 ? (
-                    <p className="mt-1 text-xs text-primary">
-                      Yillik to'lovda 20% chegirma beriladi
-                    </p>
-                  ) : null}
-                  <ul className="mt-6 flex-1 space-y-3 text-sm">
-                    <li className="flex items-start gap-2 text-foreground/85 font-semibold text-cyan-300">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
-                      Oyiga {planLimit} ta video tahlili
-                    </li>
-                    {plan.features.slice(1).map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-foreground/85">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        {f}
+                  {priceUsd > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground font-mono">yoki ~${priceUsd} / oy</p>
+                  )}
+
+                  <ul className="mt-7 space-y-3 text-xs flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+                        <span>{f}</span>
                       </li>
                     ))}
                   </ul>
+
                   <Button
-                    className="mt-7 font-bold"
-                    variant={plan.popular ? "default" : "outline"}
                     onClick={() => choose(plan.id)}
+                    className={cn(
+                      "mt-8 w-full font-bold",
+                      plan.popular && "bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950",
+                    )}
+                    variant={plan.popular ? "default" : "outline"}
                   >
                     {plan.cta}
                   </Button>
@@ -226,30 +224,14 @@ function Pricing() {
               );
             })}
           </div>
-          <div className="mt-8 text-center text-xs text-muted-foreground space-y-1">
-            <p>
-              Bashoratlar Meta algoritmining 5 ta drayveri va LiveDune benchmarklari asosida beriladi.
-            </p>
-            <p>
-              To'lovlar to'g'ridan-to'g'ri administrator Telegramiga (
-              <a href={TELEGRAM_PAYMENT.telegramUrl} target="_blank" rel="noreferrer" className="text-cyan-400 underline font-semibold">
-                @{TELEGRAM_PAYMENT.username}
-              </a>
-              , tel:{" "}
-              <a href={`tel:${TELEGRAM_PAYMENT.phone}`} className="text-foreground underline font-mono">
-                {TELEGRAM_PAYMENT.displayPhone}
-              </a>
-              ) qabul qilinadi. Click, Payme va kartalar orqali qulay to'lov.
-            </p>
-          </div>
         </div>
       </section>
-      <SiteFooter />
 
+      <SiteFooter />
       <PaymentModal
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
-        selectedPlan={selectedPlan}
+        planId={selectedPlan}
       />
     </div>
   );

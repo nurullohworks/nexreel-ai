@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Send, Phone, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/lib/app-store";
+import { PaymentService, TELEGRAM_PAYMENT } from "@/lib/services/payment";
+import { toast } from "sonner";
 
 export function UpgradeModal({
   open,
@@ -10,33 +12,82 @@ export function UpgradeModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  selectedPlan?: "pro" | "agency";
 }) {
-  const { setPlan } = useAppStore();
+  const { setPlan, user } = useAppStore();
+
+  const handleOpenTelegram = () => {
+    const url = PaymentService.generateTelegramUrl("pro", user?.email);
+    window.open(url, "_blank", "noopener,noreferrer");
+    toast.info("Telegram ochilmoqda...", {
+      description: `@${TELEGRAM_PAYMENT.username} ga Pro tarifi uchun xabar yuborilmoqda.`,
+    });
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-border bg-popover">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted">
-          <Sparkles className="h-5 w-5 text-primary" />
+      <DialogContent className="max-w-md border-border/80 bg-card/95 backdrop-blur-xl p-6 sm:rounded-2xl shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
+              Limit Tugadi
+            </div>
+            <DialogTitle className="text-xl font-bold text-foreground">
+              Oylik tahlil limitingizga yetdingiz
+            </DialogTitle>
+          </div>
         </div>
-        <DialogTitle className="text-xl">Oylik tahlil limitingizga yetdingiz.</DialogTitle>
-        <DialogDescription className="text-sm leading-relaxed">
-          Reels-larni tahlil qilishni davom ettirish va ilg'or samaradorlik tahlillarini ochish uchun
-          tarifni yangilang.
+
+        <DialogDescription className="text-xs text-muted-foreground leading-relaxed mt-2">
+          Reels videolarni cheklovsiz tahlil qilish, watermark radari va Meta algoritmi drayverlaridan to'liq foydalanish uchun Pro yoki Agency tarifiga o'ting.
         </DialogDescription>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+
+        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 text-xs space-y-1.5 mt-2">
+          <div className="flex justify-between items-center text-foreground font-semibold">
+            <span>Pro Yaratuvchi:</span>
+            <span className="text-cyan-400">190,000 so'm / oyiga</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            Telegram: <a href={TELEGRAM_PAYMENT.telegramUrl} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">@{TELEGRAM_PAYMENT.username}</a> · Tel: <a href={`tel:${TELEGRAM_PAYMENT.phone}`} className="text-foreground hover:underline font-mono">{TELEGRAM_PAYMENT.displayPhone}</a>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2">
           <Button
-            className="flex-1"
-            onClick={() => {
-              setPlan("pro");
-              onOpenChange(false);
-            }}
+            size="lg"
+            className="w-full h-11 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20"
+            onClick={handleOpenTelegram}
           >
-            Pro tarifiga o'tish
+            <Send className="h-4 w-4" />
+            <span>Telegram orqali Pro olish (@{TELEGRAM_PAYMENT.username})</span>
+            <ExternalLink className="h-3 w-3 opacity-80" />
           </Button>
-          <Button asChild variant="outline" className="flex-1">
-            <Link to="/pricing">Tariflarni ko'rish</Link>
-          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 text-xs"
+              asChild
+              onClick={() => onOpenChange(false)}
+            >
+              <Link to="/pricing">Tariflarni ko'rish</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="flex-1 text-xs text-muted-foreground"
+              onClick={() => {
+                setPlan("pro");
+                toast.success("Pro tarifi muvaffaqiyatli faollashtirildi!");
+                onOpenChange(false);
+              }}
+            >
+              Faollashtirish (Sinov)
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

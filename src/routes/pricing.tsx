@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Send, Phone, ShieldCheck } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useAppStore } from "@/lib/app-store";
 import type { PlanId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PaymentModal } from "@/components/app/PaymentModal";
+import { TELEGRAM_PAYMENT } from "@/lib/services/payment";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -83,7 +84,7 @@ function Pricing() {
   const [yearly, setYearly] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("pro");
-  const { user, setPlan } = useAppStore();
+  const { user, setPlan, pricingConfig } = useAppStore();
   const navigate = useNavigate();
 
   const choose = (id: PlanId) => {
@@ -103,35 +104,71 @@ function Pricing() {
         <div className="mx-auto max-w-6xl px-5">
           <div className="text-center">
             <h1 className="text-4xl font-semibold md:text-5xl">Natija uchun mo'ljallangan narxlar.</h1>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Har bir tarif to'liq bashorat tizimini o'z ichiga oladi. Click, Payme va xalqaro kartalar orqali to'lov qiling.
+            <p className="mt-4 text-sm text-muted-foreground max-w-2xl mx-auto">
+              Har bir tarif to'liq bashorat tizimini o'z ichiga oladi. To'lov to'g'ridan-to'g'ri Telegram orqali (@{TELEGRAM_PAYMENT.username}, {TELEGRAM_PAYMENT.displayPhone}) Click, Payme va kartalar bilan tezkor qabul qilinadi.
             </p>
-            <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-surface p-1 text-sm">
-              <button
-                onClick={() => setYearly(false)}
-                className={cn(
-                  "rounded-full px-4 py-1.5 transition-colors",
-                  !yearly ? "bg-muted text-foreground" : "text-muted-foreground",
-                )}
+
+            {/* Telegram Fast Banner */}
+            <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-5 py-2.5 text-xs text-sky-200">
+              <span className="flex items-center gap-1.5 font-bold text-sky-400">
+                <Send className="h-3.5 w-3.5" /> Telegram orqali to'lov:
+              </span>
+              <a
+                href={TELEGRAM_PAYMENT.telegramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono font-bold text-cyan-300 hover:underline"
               >
-                Oylik
-              </button>
-              <button
-                onClick={() => setYearly(true)}
-                className={cn(
-                  "rounded-full px-4 py-1.5 transition-colors",
-                  yearly ? "bg-muted text-foreground" : "text-muted-foreground",
-                )}
-              >
-                Yillik В· 20% tejang
-              </button>
+                @{TELEGRAM_PAYMENT.username}
+              </a>
+              <span className="text-sky-500/60 hidden sm:inline">•</span>
+              <span className="flex items-center gap-1 text-muted-foreground font-mono">
+                <Phone className="h-3 w-3 text-emerald-400" />
+                <a href={`tel:${TELEGRAM_PAYMENT.phone}`} className="hover:underline text-foreground">
+                  {TELEGRAM_PAYMENT.displayPhone}
+                </a>
+              </span>
+              <span className="text-sky-500/60 hidden sm:inline">•</span>
+              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" /> 5 daqiqada faollashtirish
+              </span>
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <div className="inline-flex items-center gap-1 rounded-full border border-border bg-surface p-1 text-sm">
+                <button
+                  onClick={() => setYearly(false)}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 transition-colors",
+                    !yearly ? "bg-muted text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  Oylik
+                </button>
+                <button
+                  onClick={() => setYearly(true)}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 transition-colors",
+                    yearly ? "bg-muted text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  Yillik · 20% tejang
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="mt-12 grid gap-5 lg:grid-cols-3">
             {plans.map((plan) => {
-              const priceSum = yearly ? Math.round(plan.monthlyUzSum * 0.8) : plan.monthlyUzSum;
-              const priceUsd = yearly ? Math.round(plan.monthlyUsd * 0.8) : plan.monthlyUsd;
+              const dyn = pricingConfig[plan.id];
+              const basePriceUzSum = dyn ? dyn.priceUzSum : plan.monthlyUzSum;
+              const basePriceUsd = dyn ? dyn.priceUsd : plan.monthlyUsd;
+              const planLimit = dyn ? dyn.analysisLimit : (plan.id === "free" ? 2 : plan.id === "pro" ? 100 : 500);
+              const planName = dyn ? dyn.name : plan.name;
+
+              const priceSum = yearly ? Math.round(basePriceUzSum * 0.8) : basePriceUzSum;
+              const priceUsd = yearly ? Math.round(basePriceUsd * 0.8) : basePriceUsd;
+
               return (
                 <div
                   key={plan.id}
@@ -146,7 +183,7 @@ function Pricing() {
                     </span>
                   ) : null}
                   <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-semibold">
-                    {plan.name}
+                    {planName}
                   </h2>
                   <div className="mt-4 flex flex-col">
                     {plan.id === "free" ? (
@@ -161,13 +198,17 @@ function Pricing() {
                       </>
                     )}
                   </div>
-                  {yearly && plan.monthlyUzSum > 0 ? (
+                  {yearly && basePriceUzSum > 0 ? (
                     <p className="mt-1 text-xs text-primary">
                       Yillik to'lovda 20% chegirma beriladi
                     </p>
                   ) : null}
                   <ul className="mt-6 flex-1 space-y-3 text-sm">
-                    {plan.features.map((f) => (
+                    <li className="flex items-start gap-2 text-foreground/85 font-semibold text-cyan-300">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+                      Oyiga {planLimit} ta video tahlili
+                    </li>
+                    {plan.features.slice(1).map((f) => (
                       <li key={f} className="flex items-start gap-2 text-foreground/85">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         {f}
@@ -185,10 +226,22 @@ function Pricing() {
               );
             })}
           </div>
-          <p className="mt-8 text-center text-xs text-muted-foreground">
-            Bashoratlar Meta algoritmining 5 ta drayveri va LiveDune benchmarklari asosida beriladi.
-            To'lovlar Click, Payme va Stripe orqali to'liq himoyalangan.
-          </p>
+          <div className="mt-8 text-center text-xs text-muted-foreground space-y-1">
+            <p>
+              Bashoratlar Meta algoritmining 5 ta drayveri va LiveDune benchmarklari asosida beriladi.
+            </p>
+            <p>
+              To'lovlar to'g'ridan-to'g'ri administrator Telegramiga (
+              <a href={TELEGRAM_PAYMENT.telegramUrl} target="_blank" rel="noreferrer" className="text-cyan-400 underline font-semibold">
+                @{TELEGRAM_PAYMENT.username}
+              </a>
+              , tel:{" "}
+              <a href={`tel:${TELEGRAM_PAYMENT.phone}`} className="text-foreground underline font-mono">
+                {TELEGRAM_PAYMENT.displayPhone}
+              </a>
+              ) qabul qilinadi. Click, Payme va kartalar orqali qulay to'lov.
+            </p>
+          </div>
         </div>
       </section>
       <SiteFooter />

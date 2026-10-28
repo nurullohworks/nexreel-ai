@@ -238,6 +238,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       /* ignore corrupt state */
     }
     setHydrated(true);
+  }, []);
+
   // 2. Supabase Auth tinglash (Faqat haqiqiy o'zgarishlar, refreshda userni o'chirmaydi)
   useEffect(() => {
     let authListener: { subscription?: { unsubscribe: () => void } } | null = null;

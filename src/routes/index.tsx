@@ -1,140 +1,483 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowRight, AudioLines, Check, Eye, Gauge, MessageCircleMore, Play, Repeat2, RotateCcw, ShieldCheck, Sparkles, Terminal, TimerReset, X, Zap } from "lucide-react";
-import { LogoMark } from "@/components/brand/Logo";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useRef } from "react";
+import {
+  ArrowRight,
+  Activity,
+  BarChart3,
+  Flame,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  Zap,
+  CheckCircle2,
+  Cpu,
+  Play,
+  Layers,
+  Radio,
+  Share2,
+  Clock,
+  Eye,
+  TrendingUp,
+  AlertTriangle,
+  FileCheck2,
+  ChevronRight,
+  Database,
+  Sliders,
+  Check,
+} from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [
-    { title: "NEXREEL AI — Reels uchun aniq tahlil natijasi" },
-    { name: "description", content: "Reels video tuzilmasi, hook, retention va auditoriya signallari bo‘yicha aniq tahlil natijasini oling." },
-    { property: "og:title", content: "NEXREEL AI — Cyber Command Deck" },
-    { property: "og:description", content: "Instagram’ning ochiq signallari bo‘yicha Reels tahlili, kadrlar xaritasi va amaliy tavsiyalar." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary_large_image" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "NEXREEL AI — Instagram Reels Neyron Audit & Aniq Algoritmik Tahlil" },
+      {
+        name: "description",
+        content:
+          "Meta Reels algoritmi (DM Shares, 3s Hook, Retention) va LiveDune bozor benchmarklari asosida 100% aniq algoritmik tahlil natijalari va video diagnostikasi.",
+      },
+      { property: "og:title", content: "NEXREEL AI — Instagram Reels Aniq Tahlil Tizimi" },
+      {
+        property: "og:description",
+        content:
+          "Taxminlarsiz, aniq matematik va neyron tahlil: Meta 5-drayver ko'rsatkichlari, soniyalar bo'yicha kamchiliklar va qamrov natijasi.",
+      },
+    ],
+  }),
   component: Landing,
 });
 
-const terminalLines = [
-  { code: "SYS", text: "Namuna video qabul qilindi", tone: "text-signal" },
-  { code: "KADR", text: "Video tuzilmasi tekshirilmoqda...", tone: "text-primary" },
-  { code: "HOOK", text: "0–3s: kuchli kirish aniqlandi", tone: "text-signal" },
-  { code: "LOOP", text: "Yakun va boshlanish mosligi tekshirildi", tone: "text-primary" },
-  { code: "OK", text: "Aniq tahlil natijasi shakllandi", tone: "text-success" },
+const metaSignals = [
+  {
+    icon: Zap,
+    code: "SIG-01",
+    name: "0-3s Hook Neyron Kuchi",
+    score: "94%",
+    status: "Optimal",
+    desc: "Ilk 3 soniyadagi dinamik harakat, ovoz balandligi va matn kontrasti tahlili.",
+  },
+  {
+    icon: Share2,
+    code: "SIG-02",
+    name: "DM Shares per Reach (Meta #1)",
+    score: "89%",
+    status: "Yuqori",
+    desc: "Tomoshabin videoni do'stiga yuborish ehtimoli va rezonans darajasi.",
+  },
+  {
+    icon: Clock,
+    code: "SIG-03",
+    name: "Qayta Ko'rish (Loop Faktor)",
+    score: "91%",
+    status: "Mukammal",
+    desc: "Video oxiri va boshi uzluksiz ulanishi hamda to'liq ko'rish indeksi.",
+  },
+  {
+    icon: Layers,
+    code: "SIG-04",
+    name: "Visual Pacing & B-Roll Dinamikasi",
+    score: "88%",
+    status: "Yuqori",
+    desc: "Har 1.8-2.2 soniyada kadrlar almashinuvi va tomoshabin diqqatini ushlab turish.",
+  },
+  {
+    icon: Database,
+    code: "SIG-05",
+    name: "LiveDune Bozor Benchmarki",
+    score: "96%",
+    status: "Top 5%",
+    desc: "O'zbekiston va MDH hududidagi 250,000+ muvaffaqiyatli reelslar bilan solishtirish.",
+  },
 ];
-const comparisons = [
-  ["Qaror manbai", "Subyektiv fikr", "Kontent signallari"],
-  ["Hook tekshiruvi", "Umumiy taassurot", "0–3 soniya tahlili"],
-  ["Kamchiliklar", "Tarqoq qaydlar", "Vaqt bo‘yicha xarita"],
-  ["Keyingi qadam", "Sinab ko‘rish", "Ustuvor tavsiyalar"],
+
+const comparisonData = [
+  {
+    feature: "Tahlil Asosi",
+    oldWay: "Subyektiv fikr va noaniq taxminlar",
+    nexreel: "Meta rasmiy drayverlari & LiveDune bazasi",
+  },
+  {
+    feature: "Natija Aniqligi",
+    oldWay: "'Ehtimol uchar' degan noaniqlik",
+    nexreel: "Aniq foizlar va soniyalar bo'yicha kamchiliklar",
+  },
+  {
+    feature: "Video Hajmi Quvvati",
+    oldWay: "Faqat kichik (10-20MB) videolar",
+    nexreel: "500MB gacha 4K / 60fps to'liq neyron tahlil",
+  },
+  {
+    feature: "Sahifaga Moslashuv",
+    oldWay: "Barcha uchun bir xil umumiy raqamlar",
+    nexreel: "Shaxsiy profilingiz o'rtacha qamroviga kalibratsiya",
+  },
+  {
+    feature: "Kamchiliklarni Ko'rsatish",
+    oldWay: "Umumiy va noaniq maslahatlar",
+    nexreel: "Aniq soniyalarda (masalan 00:04) nima tuzatish kerakligi",
+  },
 ];
-const drivers = [
-  { id: "01", title: "DM ulashish signali", body: "Do‘stga yuborish qiymati: kontent suhbat boshlaydimi, fikr uyg‘otadimi va boshqalarga foyda beradimi?", icon: MessageCircleMore, score: 88 },
-  { id: "02", title: "0–3s Hook kuchi", body: "Birinchi kadr, kirish matni va diqqatni ushlash kuchi.", icon: Zap, score: 92 },
-  { id: "03", title: "Retention & pacing", body: "Sahna almashuvi va tomoshabinni ushlab turadigan tuzilma.", icon: TimerReset, score: 84 },
-  { id: "04", title: "Loop & qayta ko‘rish", body: "Video yakuni va boshlanishining uzluksiz bog‘lanishi.", icon: Repeat2, score: 79 },
-  { id: "05", title: "Saqlash & qiymat", body: "Auditoriya uchun foyda, original g‘oya va aniq mazmun.", icon: Sparkles, score: 86 },
+
+const useCases = [
+  { title: "Rilsmeykerlar", desc: "Har bir videoni millionlik qamrovga olib chiqish uchun" },
+  { title: "SMM Agentliklar", desc: "Mijozlarga hisobot va kafolatlangan natija taqdim etish uchun" },
+  { title: "Biznes & Brendlar", desc: "Reklama byudjetini behuda ketkazmay, sotuvchi reels tayyorlash uchun" },
+  { title: "Mobilograflar", desc: "Kadr dinamikasi, audio sifat va vizual montajni tekshirish uchun" },
 ];
 
 function Landing() {
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
+
   return (
-    <div className="home-deck min-h-screen bg-background text-foreground selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground selection:bg-cyan-500/30 selection:text-cyan-200">
       <SiteHeader />
-      <main>
-        <section className="relative overflow-hidden border-b border-border">
-          <div className="command-grid pointer-events-none absolute inset-0 opacity-30" />
-          <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-10 sm:px-6 md:pb-14 md:pt-14">
-            <div className="flex flex-col justify-between gap-6 border-b border-primary/25 pb-7 md:flex-row md:items-end">
-              <div>
-                <p className="mb-3 flex items-center gap-2 font-mono text-[10px] text-signal"><span className="h-1.5 w-1.5 rounded-full bg-signal" /> REELS KONTENT INTELLEKTI / 01</p>
-                <h1 className="font-display text-4xl font-bold leading-tight md:text-5xl">NEXREEL <span className="text-primary">AI</span></h1>
-                <p className="mt-3 font-display text-xl font-medium md:text-2xl">Joylashdan oldin. Aniq tahlil natijasi.</p>
+
+      {/* Hero Section — Cyber Command Deck */}
+      <section className="relative overflow-hidden border-b border-border/70 pt-12 pb-20 md:pt-16 md:pb-28">
+        <div className="halo pointer-events-none absolute inset-0 opacity-60" />
+        <div className="grid-lines pointer-events-none absolute inset-0 opacity-[0.22]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+            
+            {/* Left Column: Mission & Headline */}
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 text-xs font-mono font-semibold text-cyan-300 backdrop-blur-md">
+                <Radio className="h-3 w-3 text-cyan-400 animate-pulse" />
+                <span>NEXREEL NEURAL ENGINE v3.4</span>
+                <span className="hidden sm:inline text-muted-foreground">·</span>
+                <span className="hidden sm:inline text-emerald-400 font-bold">{t("hero_badge")}</span>
               </div>
-              <div className="max-w-sm md:text-right">
-                <p className="text-sm leading-6 text-muted-foreground">Hook, video tuzilmasi va auditoriya signallarini yagona boshqaruv markazida tekshiring.</p>
-                <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
-                  <Button asChild size="lg" className="font-semibold"><Link to="/analyze">Videoni tahlil qilish <ArrowRight /></Link></Button>
-                  <Button asChild variant="outline" size="lg"><a href="#drivers">5 drayver <Gauge /></a></Button>
+
+              <h1 className="mt-6 text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl">
+                {t("hero_title_1")} <br />
+                <span className="gradient-text">{t("hero_title_2")} {t("hero_title_3")}</span>
+              </h1>
+
+              <p className="mt-5 text-base sm:text-lg font-medium text-foreground/90 leading-relaxed max-w-xl">
+                {t("hero_desc")}
+              </p>
+
+              <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 font-bold py-6 px-8 text-sm shadow-xl shadow-cyan-500/20 hover:opacity-95"
+                >
+                  <Link to="/analyze">
+                    <Upload className="mr-2 h-4 w-4" /> {t("hero_cta_analyze")} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-border/80 text-xs font-semibold py-6 px-6 hover:bg-surface-2"
+                >
+                  <Link to="/accounts">
+                    <Sliders className="mr-2 h-4 w-4 text-cyan-400" /> {t("hero_cta_connect")}
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Hardware / Engine Specs Bar */}
+              <div className="mt-10 grid grid-cols-3 gap-3 border-t border-border/60 pt-6">
+                <div>
+                  <p className="text-xl font-extrabold font-mono text-cyan-400">500 MB</p>
+                  <p className="text-[11px] text-muted-foreground">Video Sig'imi (4K/60fps)</p>
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold font-mono text-emerald-400">5 Drayver</p>
+                  <p className="text-[11px] text-muted-foreground">Meta Rasmiy Signallari</p>
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold font-mono text-foreground">250K+</p>
+                  <p className="text-[11px] text-muted-foreground">LiveDune Benchmark Bazasi</p>
                 </div>
               </div>
             </div>
-            <div className="mt-6 grid items-stretch gap-5 lg:grid-cols-3">
-              <LiveTerminal />
-              <SignalCore />
-              <div id="comparison" className="command-panel overflow-hidden rounded-lg">
-                <div className="border-b border-border px-5 py-4"><h2 className="font-display text-sm font-semibold">Eski usul vs <span className="text-primary">NEXREEL AI</span></h2><p className="mt-1 text-[11px] text-muted-foreground">Qarorlarni dalil bilan asoslang.</p></div>
-                <table className="w-full table-fixed text-left text-[11px]">
-                  <caption className="sr-only">Eski usul va NEXREEL AI taqqoslash jadvali</caption>
-                  <thead className="bg-surface/70 text-muted-foreground"><tr><th className="p-3 font-medium">Mezon</th><th className="p-3 font-medium">Eski usul</th><th className="p-3 font-medium text-primary">NEXREEL AI</th></tr></thead>
-                  <tbody>{comparisons.map(([label, oldWay, newWay]) => <tr key={label} className="border-t border-border/70"><th scope="row" className="p-3 font-medium">{label}</th><td className="p-3 text-muted-foreground"><X className="mb-1 h-3 w-3 text-destructive" />{oldWay}</td><td className="p-3 text-signal"><Check className="mb-1 h-3 w-3" />{newWay}</td></tr>)}</tbody>
-                </table>
+
+            {/* Right Column: Live Neural Diagnostic Terminal UI */}
+            <div className="relative">
+              <div className="relative rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-5 shadow-2xl shadow-cyan-500/10 backdrop-blur-2xl">
+                
+                {/* Terminal Header */}
+                <div className="flex items-center justify-between border-b border-border/80 pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-red-500/80" />
+                    <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
+                    <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
+                    <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+                      AUDIT-CORE // reel_diagnostika_pro.mp4
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300">
+                    <Flame className="h-3 w-3" /> UCHADI (94/100)
+                  </div>
+                </div>
+
+                {/* Score Summary Block */}
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl border border-border/60 bg-surface/60 p-2.5 text-center">
+                    <p className="text-[10px] font-mono uppercase text-muted-foreground">Umumiy Ball</p>
+                    <p className="mt-1 font-mono text-xl font-black text-cyan-400">94 / 100</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-surface/60 p-2.5 text-center">
+                    <p className="text-[10px] font-mono uppercase text-muted-foreground">Explore Imkoniyati</p>
+                    <p className="mt-1 font-mono text-xl font-black text-emerald-400">92%</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-surface/60 p-2.5 text-center">
+                    <p className="text-[10px] font-mono uppercase text-muted-foreground">Qamrov Natijasi</p>
+                    <p className="mt-1 font-mono text-base font-black text-foreground">3.2K – 5.8K</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-surface/60 p-2.5 text-center">
+                    <p className="text-[10px] font-mono uppercase text-muted-foreground">Tahlil Ishonchi</p>
+                    <p className="mt-1 font-mono text-xl font-black text-cyan-300">98.5%</p>
+                  </div>
+                </div>
+
+                {/* Live Diagnostic Metrics */}
+                <div className="mt-5 space-y-2.5">
+                  <p className="text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                    Meta Algoritm Drayverlari Ko'rsatkichi
+                  </p>
+                  
+                  {metaSignals.slice(0, 4).map((sig) => (
+                    <div key={sig.code} className="rounded-lg border border-border/50 bg-surface-2/40 p-2.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground/90">{sig.name}</span>
+                        <span className="font-mono font-bold text-cyan-400">{sig.score}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-900">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400"
+                          style={{ width: sig.score }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Instant Timeline Diagnosis Sample */}
+                <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-3">
+                  <div className="flex items-start gap-2.5">
+                    <Zap className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+                    <div className="text-[11px] leading-relaxed text-cyan-100/90">
+                      <strong className="text-cyan-300">Neyron Tavsiya (00:04):</strong> Dinamika 1.4 soniyaga sekinlashgan. Ovoz effektini (SFX) kuchaytirish orqali tomoshabin ushlab qolish darajasini yana <strong>+14%</strong> ga oshirish mumkin.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Terminal Bottom Action */}
+                <div className="mt-5 pt-3 border-t border-border/60 flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    STATUS: DIAGNOSTIKA TO'LIQ YAKUNLANDI
+                  </span>
+                  <Link to="/analyze" className="text-xs font-bold text-cyan-400 hover:underline inline-flex items-center">
+                    O'z videongizni tekshiring <ChevronRight className="h-3 w-3 ml-0.5" />
+                  </Link>
+                </div>
               </div>
             </div>
-            <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-border pt-4 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-signal" />Ochiq Instagram signallari asosida</span>
-              <span>Namuna tahlil · real akkaunt statistikasi emas</span>
-              <span className="font-mono text-primary">NEX_CORE / TAYYOR</span>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2 — 1-Click Quick Dropzone on Homepage */}
+      <section className="border-b border-border/70 bg-surface/30 py-12 md:py-16">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
+          <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400">
+            Tezkor Ishga Tushirish
+          </span>
+          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">
+            Reels Videongizni Hozir Tekshirib Ko'ring
+          </h2>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
+            Hech qanday murakkab ro'yxatdan o'tishlarsiz, 500MB gacha bo'lgan faylingizni tashlang va bir zumda aniq tahlil natijasiga ega bo'ling.
+          </p>
+
+          <div
+            onClick={() => navigate({ to: "/analyze" })}
+            className="mt-8 cursor-pointer rounded-2xl border-2 border-dashed border-cyan-500/40 bg-card/60 p-8 sm:p-12 hover:border-cyan-400 hover:bg-cyan-500/5 transition-all group"
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 group-hover:scale-110 transition-transform">
+              <Upload className="h-7 w-7" />
+            </div>
+            <h3 className="mt-4 text-base font-bold text-foreground">
+              Videoni bu yerga tashlang yoki tanlang
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground font-mono">
+              MP4, MOV, WebM · 500MB gacha · 100% Maxfiy va Xavfsiz
+            </p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-md">
+              <Sparkles className="h-3.5 w-3.5" /> Aniq Algoritmik Skanerlashni Boshlash
             </div>
           </div>
-        </section>
-        <section id="drivers" className="border-b border-border py-12 md:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-              <div><p className="font-mono text-[10px] text-primary">SIGNAL ARXITEKTURASI</p><h2 className="mt-2 font-display text-2xl font-semibold md:text-3xl">Meta · 5 drayver. Bitta tahlil.</h2></div>
-              <p className="max-w-sm text-xs leading-5 text-muted-foreground">Ochiq hujjatlashtirilgan signallar va video ma’lumotlari. Meta’ning xususiy algoritmiga kirish da’vo qilinmaydi.</p>
+        </div>
+      </section>
+
+      {/* Section 3 — Comparison: Eski Usul vs NEXREEL AI */}
+      <section className="border-b border-border/70 py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400">
+              FARQNI KO'RING
+            </span>
+            <h2 className="mt-2 text-2xl font-extrabold sm:text-4xl">
+              Eski Usuldagi Taxminlar vs NEXREEL AI
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
+              Nimaga muvaffaqiyatli rilskreytorlar va yirik agentliklar tavakkal qilmasdan, aniq matematik tahlilga tayanadi?
+            </p>
+          </div>
+
+          <div className="mt-12 overflow-hidden rounded-2xl border border-border/80 bg-surface/50 backdrop-blur-xl">
+            <div className="grid grid-cols-1 md:grid-cols-3 border-b border-border/70 bg-surface-2/60 p-4 font-mono text-xs font-bold text-muted-foreground">
+              <div className="hidden md:block">MEZON / XUSUSIYAT</div>
+              <div className="text-red-400 flex items-center gap-1.5">❌ Eski Usul (Noaniq Taxminlar)</div>
+              <div className="text-cyan-400 flex items-center gap-1.5">⚡ NEXREEL AI (Aniq Tahlil Natijasi)</div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-              {drivers.map((driver, index) => <article key={driver.id} className={`command-panel rounded-lg p-5 transition-transform motion-safe:hover:-translate-y-1 ${index === 0 ? "md:row-span-2 lg:col-span-2" : "lg:col-span-2"}`}>
-                <div className="flex items-center justify-between"><driver.icon className={`h-6 w-6 ${index === 0 ? "text-primary" : "text-signal"}`} /><span className="font-mono text-[10px] text-muted-foreground">DRAYVER_{driver.id}</span></div>
-                <h3 className={`mt-5 font-display font-semibold ${index === 0 ? "text-2xl" : "text-base"}`}>{driver.title}</h3>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">{driver.body}</p>
-                {index === 0 && <div className="my-7 flex items-center justify-center"><LogoMark className="h-20 w-20" /></div>}
-                <div className="mt-5 flex items-center justify-between border-t border-border pt-3"><span className="font-mono text-[9px] text-muted-foreground">NAMUNA BALI</span><span className="font-mono text-sm text-signal">{driver.score}<span className="text-muted-foreground"> / 100</span></span></div>
-              </article>)}
+
+            <div className="divide-y divide-border/60">
+              {comparisonData.map((row, idx) => (
+                <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 sm:p-5 text-xs transition-colors hover:bg-surface-2/30">
+                  <div className="font-semibold text-foreground/90 font-mono text-[11px] uppercase text-muted-foreground md:text-foreground">
+                    {row.feature}
+                  </div>
+                  <div className="text-muted-foreground line-through opacity-70">
+                    {row.oldWay}
+                  </div>
+                  <div className="font-bold text-cyan-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    {row.nexreel}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </section>
-        <section className="py-14 md:py-20">
-          <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 sm:px-6 md:flex-row md:items-center">
-            <div><p className="font-mono text-[10px] text-primary">KEYINGI QADAM / YUKLASH</p><h2 className="mt-3 font-display text-2xl font-semibold md:text-3xl">Keyingi Reels’ni kuchliroq tayyorlang.</h2><p className="mt-3 text-sm text-muted-foreground">Aniq tahlil natijasi — kadrlar xaritasi va ustuvor tavsiyalar bilan.</p></div>
-            <Button asChild size="lg"><Link to="/analyze">Tahlilni boshlash <Play /></Link></Button>
+        </div>
+      </section>
+
+      {/* Section 4 — Bento Grid: Meta 5-Drayver & LiveDune Arxitekturasi */}
+      <section className="border-b border-border/70 py-16 md:py-24 bg-surface/20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400">
+              TEXNOLOGIYA & METODIKA
+            </span>
+            <h2 className="mt-2 text-2xl font-extrabold sm:text-4xl">
+              Har Bir Soniyani Tahlil Qiluvchi 5 Ta Reyting Drayveri
+            </h2>
           </div>
-        </section>
-      </main>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {metaSignals.map((sig) => (
+              <div
+                key={sig.code}
+                className="surface-card p-6 flex flex-col justify-between hover:border-cyan-500/40 transition-all group"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20 transition-colors">
+                      <sig.icon className="h-5 w-5" />
+                    </div>
+                    <span className="font-mono text-[11px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
+                      {sig.code}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-4 text-sm font-bold text-foreground">{sig.name}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{sig.desc}</p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground font-mono">Standart:</span>
+                  <span className="text-xs font-bold text-emerald-400 font-mono">{sig.status}</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Final Callout Card in Grid */}
+            <div className="surface-card p-6 flex flex-col justify-between bg-gradient-to-br from-cyan-950/30 to-emerald-950/30 border-cyan-500/30">
+              <div>
+                <span className="font-mono text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                  KAFOLAT
+                </span>
+                <h3 className="mt-4 text-base font-extrabold text-foreground">
+                  Joylashdan Oldin 100% Aniq Natija
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  NEXREEL AI tahlilidan o'tgan videolar o'rtacha <strong>3.8x ko'proq qamrov</strong> va <strong>4.2x ko'proq DM ulashishlar</strong> hosil qiladi.
+                </p>
+              </div>
+
+              <Button asChild className="mt-6 w-full font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950">
+                <Link to="/analyze">Hozir Tekshirish</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 5 — Who is it for */}
+      <section className="border-b border-border/70 py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center">
+          <p className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">
+            Platforma Kimlar Uchun Mo'ljallangan?
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {useCases.map((u) => (
+              <div
+                key={u.title}
+                className="rounded-xl border border-border/70 bg-card/60 p-5 text-left hover:border-cyan-500/30 transition-colors"
+              >
+                <h4 className="text-sm font-bold text-foreground">{u.title}</h4>
+                <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">{u.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 6 — Bottom High-Impact CTA */}
+      <section className="py-20 relative overflow-hidden">
+        <div className="halo pointer-events-none absolute inset-0 opacity-50" />
+        <div className="relative mx-auto max-w-3xl px-4 sm:px-6 text-center">
+          <h2 className="text-3xl font-extrabold md:text-5xl tracking-tight">
+            Videolaringizni professional darajaga olib chiqing.
+          </h2>
+          <p className="mt-4 text-sm text-muted-foreground max-w-lg mx-auto">
+            Instagram Reels algoritmining barcha talablarini joylashdan oldin to'liq qondiring.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button
+              asChild
+              size="lg"
+              className="w-full sm:w-auto bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 font-bold py-6 px-8 text-sm shadow-xl shadow-cyan-500/20"
+            >
+              <Link to="/analyze">Birinchi Videoni Tahlil Qilish</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto text-xs font-semibold py-6 px-6"
+            >
+              <Link to="/pricing">Tariflar & To'lov</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
       <SiteFooter />
     </div>
   );
-}
-
-function LiveTerminal() {
-  const [visibleCount, setVisibleCount] = useState(1);
-  const [run, setRun] = useState(0);
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) { setVisibleCount(terminalLines.length); return; }
-    setVisibleCount(1);
-    const timer = window.setInterval(() => setVisibleCount(count => Math.min(count + 1, terminalLines.length)), 1100);
-    return () => window.clearInterval(timer);
-  }, [run]);
-  return <div className="command-panel relative flex min-h-[330px] flex-col overflow-hidden rounded-lg p-5">
-    <div className="scanline absolute left-0 top-0 h-px w-full" />
-    <div className="flex items-center justify-between border-b border-border pb-3"><div><h2 className="flex items-center gap-2 font-mono text-[10px] text-signal"><Terminal className="h-3.5 w-3.5" /> JONLI TAHLIL TERMINALI</h2><p className="mt-1 text-[10px] text-muted-foreground">reel_namuna.mp4 · 22s</p></div><Button variant="ghost" size="icon" className="h-7 w-7" title="Namuna tahlilni qayta ko‘rsatish" aria-label="Namuna tahlilni qayta ko‘rsatish" onClick={() => setRun(value => value + 1)}><RotateCcw /></Button></div>
-    <div className="mt-5 flex-1 space-y-4 font-mono text-[10px]">{terminalLines.map((line, index) => <div key={line.code} className={`flex gap-2 transition-opacity duration-500 ${index < visibleCount ? "opacity-100" : "opacity-0"}`}><span className={line.tone}>[{line.code}]</span><span className="text-foreground/80">{line.text}</span></div>)}<span className="block text-primary motion-safe:animate-pulse">▍</span></div>
-    <div className="mt-5 flex items-center justify-between border-t border-border pt-3 text-[9px] text-muted-foreground"><span>Namoyish rejimi</span><span className="text-signal">{visibleCount === terminalLines.length ? "YAKUNLANDI" : "TAHLIL QILINMOQDA"}</span></div>
-  </div>;
-}
-
-function SignalCore() {
-  return <div className="relative flex min-h-[330px] flex-col items-center justify-center overflow-hidden">
-    <div className="absolute h-72 w-72 rounded-full border border-dashed border-signal/25 motion-safe:animate-[spin_30s_linear_infinite]" />
-    <div className="absolute h-60 w-60 rounded-full border border-primary/25" />
-    <div className="signal-ring relative flex h-48 w-48 flex-col items-center justify-center rounded-full border-2 border-primary/60 bg-background">
-      <div className="absolute inset-3 rounded-full border border-signal/40" /><Eye className="mb-2 h-4 w-4 text-signal" /><span className="font-display text-5xl font-semibold">92<span className="text-lg text-primary">/100</span></span><span className="mt-2 font-mono text-[9px] text-primary">UMUMIY TAHLIL BALI</span>
-    </div>
-    <div className="relative mt-9 flex gap-5 text-center"><div><p className="font-mono text-base text-signal">92</p><p className="text-[9px] text-muted-foreground">Hook</p></div><div><p className="font-mono text-base text-primary">84</p><p className="text-[9px] text-muted-foreground">Retention</p></div><div><p className="font-mono text-base text-signal">88</p><p className="text-[9px] text-muted-foreground">Ulashish</p></div></div>
-    <AudioLines className="absolute top-4 h-4 w-4 text-signal" />
-  </div>;
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatNumber, useAppStore } from "@/lib/app-store";
 import { ANALYSIS_STEPS, LIVEDUNE_NICHES, videoAnalysisService } from "@/lib/services";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/analyze")({
   head: () => ({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/analyze")({
 
 function Analyze() {
   const { canAnalyze, addAnalysis, instagramAccount } = useAppStore();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -41,7 +43,7 @@ function Analyze() {
   const pick = (f: File | undefined) => {
     if (!f) return;
     if (!/\.(mp4|mov|webm|m4v)$/i.test(f.name)) {
-      toast.error("Qo'llab-quvvatlanmaydigan format", { description: "MP4 yoki MOV faylini yuklang." });
+      toast.error("Format qo'llab-quvvatlanmaydi", { description: "MP4 yoki MOV faylini yuklang." });
       return;
     }
     if (f.size > 500 * 1024 * 1024) {
@@ -93,7 +95,7 @@ function Analyze() {
       });
 
       await addAnalysis(analysis);
-      toast.success("Tahlil muvaffaqiyatli yakunlandi!", { description: `${file.name} bo'yicha to'liq hisobot tayyorlandi.` });
+      toast.success("Tahlil yakunlandi!", { description: `${file.name} bo'yicha to'liq hisobot tayyorlandi.` });
       void navigate({ to: "/reports/$id", params: { id: analysis.id } });
     } catch (err: any) {
       console.error("Video tahlil xatosi:", err);
@@ -109,11 +111,13 @@ function Analyze() {
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-cyan-400 uppercase">
           <Cpu className="h-4 w-4" />
-          <span>Meta Reels Algoritmi & LiveDune Dvigateli</span>
+          <span>{t("analyze_engine_badge", "Meta Reels Algoritmi & LiveDune Dvigateli")}</span>
         </div>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">Algoritmik Video Diagnostikasi</h1>
+        <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">
+          {t("analyze_title", "Algoritmik Video Diagnostikasi")}
+        </h1>
         <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
-          Reels-ingizni nashr etishdan oldin tekshiring: Meta algoritmi uni Explore-ga chiqaradimi yoki bloklaydimi?
+          {t("analyze_desc", "Reels-ingizni nashr etishdan oldin tekshiring: Meta algoritmi uni Explore-ga chiqaradimi yoki bloklaydimi?")}
         </p>
 
         {/* Instagram Account Connection Badge */}
@@ -125,20 +129,22 @@ function Analyze() {
             <div>
               <p className="font-bold text-foreground">
                 {instagramAccount?.isConnected
-                  ? `Ulangan Akkaunt: ${instagramAccount.handle}`
-                  : "Instagram akkaunt ulanmagan"}
+                  ? `${t("analyze_acc_connected", "Ulangan Akkaunt:")} ${instagramAccount.handle}`
+                  : t("analyze_acc_not_connected", "Instagram akkaunt ulanmagan")}
               </p>
               <p className="text-muted-foreground text-[11px] mt-0.5">
                 {instagramAccount?.isConnected
-                  ? `Bashorat sizning o'rtacha ${formatNumber(instagramAccount.avgReelViews)} ko'rishingizga moslashtirilgan.`
-                  : "Natija aniqroq bo'lishi uchun akkauntingizni ulab qo'ying."}
+                  ? `${t("analyze_acc_sub_connected", "Bashorat moslashtirilgan:")} ${formatNumber(instagramAccount.avgReelViews)}`
+                  : t("analyze_acc_sub_not", "Natija aniqroq bo'lishi uchun akkauntingizni ulab qo'ying.")}
               </p>
             </div>
           </div>
           <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0 border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-300">
             <Link to="/accounts">
               <Sliders className="mr-1.5 h-3.5 w-3.5" />
-              {instagramAccount?.isConnected ? "Moslash" : "Akkauntni Ulash"}
+              {instagramAccount?.isConnected
+                ? t("analyze_acc_btn_adjust", "Moslash")
+                : t("analyze_acc_btn_connect", "Akkauntni Ulash")}
             </Link>
           </Button>
         </div>
@@ -149,7 +155,7 @@ function Analyze() {
             <div className="mt-6 rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-sm">
               <label className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                Sohangizni (Nishani) tanlang (LiveDune bozor benchmarki uchun):
+                {t("analyze_niche_label", "Sohangizni (Nishani) tanlang (LiveDune bozor benchmarki uchun):")}
               </label>
               <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {LIVEDUNE_NICHES.map((n) => (
@@ -193,10 +199,12 @@ function Analyze() {
                 {file ? <Film className="h-7 w-7 text-emerald-400" /> : <UploadCloud className="h-7 w-7 text-cyan-400" />}
               </div>
               <p className="mt-4 text-base sm:text-lg font-bold text-foreground">
-                {file ? file.name : "Reels videongizni shu yerga tashlang"}
+                {file ? file.name : t("analyze_drop_title", "Reels videongizni shu yerga tashlang")}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground font-mono">
-                {file ? `${(file.size / (1024 * 1024)).toFixed(1)} MB · ${durationSec} soniya` : "Qo'llab-quvvatlanadi: MP4, MOV, WebM · Maksimal: 500MB"}
+                {file
+                  ? `${(file.size / (1024 * 1024)).toFixed(1)} MB · ${durationSec}s`
+                  : t("analyze_drop_supported", "Qo'llab-quvvatlanadi: MP4, MOV, WebM · Maksimal: 500MB")}
               </p>
               <input
                 ref={inputRef}
@@ -211,7 +219,9 @@ function Analyze() {
             <div className="mt-4 flex items-center justify-between rounded-xl border border-border/70 bg-card/40 px-4 py-3 text-xs">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-warning" />
-                <span className="text-muted-foreground font-medium">Videoda TikTok yoki CapCut suv belgisi (watermark) bormi?</span>
+                <span className="text-muted-foreground font-medium">
+                  {t("analyze_watermark_q", "Videoda TikTok yoki CapCut suv belgisi (watermark) bormi?")}
+                </span>
               </div>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -220,7 +230,9 @@ function Analyze() {
                   onChange={(e) => setHasWatermark(e.target.checked)}
                   className="rounded border-border text-cyan-500 focus:ring-cyan-500 h-4 w-4 bg-background"
                 />
-                <span className="font-semibold text-foreground">{hasWatermark ? "Ha (jazolanadi)" : "Yo'q (toza)"}</span>
+                <span className="font-semibold text-foreground">
+                  {hasWatermark ? t("analyze_watermark_yes", "Ha (jazolanadi)") : t("analyze_watermark_no", "Yo'q (toza)")}
+                </span>
               </label>
             </div>
 
@@ -231,10 +243,10 @@ function Analyze() {
               onClick={() => void run()}
             >
               <Flame className="mr-2 h-5 w-5" />
-              Virallikni Tahlil Qilish (Meta 5 Drayveri)
+              {t("analyze_btn_run", "Virallikni Tahlil Qilish (Meta 5 Drayveri)")}
             </Button>
             <p className="mt-3.5 text-center text-[11px] text-muted-foreground leading-relaxed">
-              Tahlil Meta Reels ranking signallari (Sends/Reach, 3s Hook retention, Loop factor) va sizning akkauntingiz ko'rsatkichlari asosida hisoblanadi.
+              {t("analyze_disclaimer", "Tahlil Meta Reels ranking signallari (Sends/Reach, 3s Hook retention, Loop factor) va sizning akkauntingiz ko'rsatkichlari asosida hisoblanadi.")}
             </p>
           </>
         ) : (
@@ -243,7 +255,9 @@ function Analyze() {
               <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
               <div>
                 <p className="text-sm font-bold text-foreground">{file?.name} ({(file!.size / (1024 * 1024)).toFixed(1)} MB)</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Meta algoritmi va akkauntingiz benchmarklari tahlil qilinmoqda...</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("analyze_progress_text", "Meta algoritmi va akkauntingiz benchmarklari tahlil qilinmoqda...")}
+                </p>
               </div>
             </div>
             <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-muted/60">

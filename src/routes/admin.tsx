@@ -109,10 +109,11 @@ function AdminPage() {
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === adminPin || pinInput === "7727") {
+    if (pinInput === adminPin) {
       setIsUnlocked(true);
       try {
         sessionStorage.setItem("nexreel_admin_unlocked", "true");
+        localStorage.setItem("nexreel_admin_device", "true");
       } catch {}
       toast.success("Admin panelga muvaffaqiyatli kirildi!");
     } else {
@@ -191,7 +192,9 @@ function AdminPage() {
       return;
     }
     setAdminPin(newPin.trim());
-    toast.success("Yangi PIN muvaffaqiyatli saqlandi!", { description: `Yangi PIN: ${newPin.trim()}` });
+    toast.success("Yangi PIN muvaffaqiyatli saqlandi!", {
+      description: "Eski PIN bekor qilindi. Endi faqat yangi PIN orqali kiriladi.",
+    });
     setNewPin("");
   };
 
@@ -249,15 +252,15 @@ function AdminPage() {
             <form onSubmit={handleUnlock} className="mt-6 space-y-4">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                  Admin PIN-kod:
+                  Maxfiy PIN-kod:
                 </label>
                 <Input
                   type="password"
                   maxLength={10}
-                  placeholder="PIN kodni kiriting (standart: 7727)"
+                  placeholder="••••••••"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  className="h-12 text-center font-mono text-lg tracking-widest bg-secondary/50 border-border/80 focus:border-cyan-500"
+                  className="h-12 text-center font-mono text-xl tracking-widest bg-secondary/50 border-border/80 focus:border-cyan-500"
                   autoFocus
                 />
               </div>
@@ -270,12 +273,6 @@ function AdminPage() {
                 Panelga Kirish
               </Button>
             </form>
-
-            <div className="mt-6 border-t border-border/60 pt-4 text-center">
-              <p className="text-[11px] text-muted-foreground">
-                Standart PIN: <span className="font-mono text-cyan-400 font-bold">7727</span> (telefon raqamingiz oxiri)
-              </p>
-            </div>
           </div>
         </div>
       </AppShell>
@@ -1068,7 +1065,7 @@ function AdminPage() {
             >
               <div>
                 <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                  Joriy PIN: <span className="font-mono text-cyan-400 font-bold">{adminPin}</span>
+                  Joriy holat: <span className="font-mono text-emerald-400 font-bold">Faol (Himoyalangan ••••)</span>
                 </label>
               </div>
 

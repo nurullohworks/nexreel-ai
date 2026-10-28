@@ -8,8 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import { seedAnalyses } from "./mock-data";
-import type { Analysis, PlanId, Subscription } from "./types";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  TelegramBotService,
+  type TelegramBotConfig,
+  type PaymentRequestPayload,
+  DEFAULT_BOT_CONFIG,
+} from "./services/telegram-bot";
 
 export interface AppUser {
   id?: string;
@@ -122,6 +127,16 @@ export interface AppStore extends AppState {
   daysUntilExpiry: number | null;
   isExpiringSoon: boolean;
   isExpired: boolean;
+
+  // Telegram Bot & Payment Requests
+  paymentRequests: PaymentRequestPayload[];
+  telegramBotConfig: TelegramBotConfig;
+  addPaymentRequest: (
+    req: Omit<PaymentRequestPayload, "id" | "createdAt" | "status">
+  ) => Promise<{ success: boolean; error?: string }>;
+  approvePaymentRequest: (id: string, days?: number) => void;
+  rejectPaymentRequest: (id: string) => void;
+  updateTelegramBotConfig: (config: Partial<TelegramBotConfig>) => void;
 }
 
 export const DEFAULT_USER: AppUser = {
@@ -156,6 +171,8 @@ interface AdminData {
   announcements: AdminAnnouncement[];
   userGrants: UserAccessGrant[];
   adminPin: string;
+  paymentRequests: PaymentRequestPayload[];
+  telegramBotConfig: TelegramBotConfig;
 }
 
 const defaultAdminData: AdminData = {
@@ -163,6 +180,8 @@ const defaultAdminData: AdminData = {
   announcements: DEFAULT_ANNOUNCEMENTS,
   userGrants: DEFAULT_USER_GRANTS,
   adminPin: "7727",
+  paymentRequests: [],
+  telegramBotConfig: TelegramBotService.getConfig(),
 };
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
@@ -534,6 +553,87 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updateTelegramBotConfig = useCallback((config: Partial<TelegramBotConfig>) => {
+    const updated = TelegramBotService.saveConfig(config);
+    setAdminData((prev) => {
+      const next = { ...prev, telegramBotConfig: updated };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const addPaymentRequest = useCallback(
+    async (req: Omit<PaymentRequestPayload, "id" | "createdAt" | "status">) => {
+      const newReq: PaymentRequestPayload = {
+        ...req,
+        id: `req_${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      };
+
+      setAdminData((prev) => {
+        const updated = {
+          ...prev,
+          paymentRequests: [newReq, ...prev.paymentRequests],
+        };
+        try {
+          window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+
+      // Telegram Botga xabar yuborish
+      const botRes = await TelegramBotService.sendPaymentAlert(req, adminData.telegramBotConfig);
+      return botRes;
+    },
+    [adminData.telegramBotConfig],
+  );
+
+  const approvePaymentRequest = useCallback(
+    (id: string, days: number = 30) => {
+      const req = adminData.paymentRequests.find((r) => r.id === id);
+      if (req) {
+        grantUserAccess(
+          req.userContact,
+          req.planId as PlanId,
+          days,
+          `Tasdiqlangan to'lov (${req.priceUzSum.toLocaleString()} so'm)`
+        );
+
+        setAdminData((prev) => {
+          const updated = {
+            ...prev,
+            paymentRequests: prev.paymentRequests.map((r) =>
+              r.id === id ? { ...r, status: "approved" as const } : r
+            ),
+          };
+          try {
+            window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+    },
+    [adminData.paymentRequests, grantUserAccess],
+  );
+
+  const rejectPaymentRequest = useCallback((id: string) => {
+    setAdminData((prev) => {
+      const updated = {
+        ...prev,
+        paymentRequests: prev.paymentRequests.map((r) =>
+          r.id === id ? { ...r, status: "rejected" as const } : r
+        ),
+      };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
   const value = useMemo<AppStore>(
     () => ({
       ...state,
@@ -564,6 +664,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       daysUntilExpiry,
       isExpiringSoon,
       isExpired,
+
+      // Telegram Bot & Requests
+      paymentRequests: adminData.paymentRequests,
+      telegramBotConfig: adminData.telegramBotConfig,
+      addPaymentRequest,
+      approvePaymentRequest,
+      rejectPaymentRequest,
+      updateTelegramBotConfig,
     }),
     [
       state,
@@ -588,6 +696,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       daysUntilExpiry,
       isExpiringSoon,
       isExpired,
+      addPaymentRequest,
+      approvePaymentRequest,
+      rejectPaymentRequest,
+      updateTelegramBotConfig,
     ],
   );
 

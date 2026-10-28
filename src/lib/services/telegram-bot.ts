@@ -30,6 +30,7 @@ export class TelegramBotService {
    * Retrieves saved bot configuration from localStorage
    */
   static getConfig(): TelegramBotConfig {
+    if (typeof window === "undefined") return DEFAULT_BOT_CONFIG;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -45,9 +46,11 @@ export class TelegramBotService {
   static saveConfig(config: Partial<TelegramBotConfig>): TelegramBotConfig {
     const current = this.getConfig();
     const updated = { ...current, ...config };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+    }
     return updated;
   }
 

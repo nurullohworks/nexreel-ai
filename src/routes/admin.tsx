@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   ShieldCheck,
@@ -71,9 +71,15 @@ function AdminPage() {
     updateTelegramBotConfig,
   } = useAppStore();
 
-  const [isUnlocked, setIsUnlocked] = useState(() => {
-    return sessionStorage.getItem("nexreel_admin_unlocked") === "true";
-  });
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        setIsUnlocked(sessionStorage.getItem("nexreel_admin_unlocked") === "true");
+      } catch {}
+    }
+  }, []);
   const [pinInput, setPinInput] = useState("");
   const [activeTab, setActiveTab] = useState<
     "pricing" | "users" | "announcements" | "telegram" | "security"
@@ -105,7 +111,9 @@ function AdminPage() {
     e.preventDefault();
     if (pinInput === adminPin || pinInput === "7727") {
       setIsUnlocked(true);
-      sessionStorage.setItem("nexreel_admin_unlocked", "true");
+      try {
+        sessionStorage.setItem("nexreel_admin_unlocked", "true");
+      } catch {}
       toast.success("Admin panelga muvaffaqiyatli kirildi!");
     } else {
       toast.error("Noto'g'ri PIN-kod! Iltimos, qaytadan urinib ko'ring.");
@@ -114,7 +122,9 @@ function AdminPage() {
 
   const handleLogout = () => {
     setIsUnlocked(false);
-    sessionStorage.removeItem("nexreel_admin_unlocked");
+    try {
+      sessionStorage.removeItem("nexreel_admin_unlocked");
+    } catch {}
     toast.info("Admin paneldan chiqildi.");
   };
 

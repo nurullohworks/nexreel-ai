@@ -1,43 +1,46 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
-
-const columns: { title: string; items: { label: string; to?: string; href?: string }[] }[] = [
-  {
-    title: "Mahsulot",
-    items: [
-      { label: "Video Tahlil", to: "/analyze" },
-      { label: "Instagram Akkaunt", to: "/accounts" },
-      { label: "Tariflar", to: "/pricing" },
-      { label: "Tahlillar Tarixi", to: "/history" },
-    ],
-  },
-  {
-    title: "Algoritmlar",
-    items: [
-      { label: "Meta Reels 5 Drayveri" },
-      { label: "LiveDune Bozor Benchmarki" },
-      { label: "Gemini 2.0 Flash Dvigateli" },
-    ],
-  },
-  {
-    title: "Huquqiy & Aloqa",
-    items: [
-      { label: "Maxfiylik siyosati" },
-      { label: "Foydalanish shartlari" },
-      { label: "Aloqa: @pray_boy", href: "https://t.me/pray_boy" },
-      { label: "Tel: +998 93 760 77 27", href: "tel:+998937607727" },
-    ],
-  },
-];
+import { useI18n } from "@/lib/i18n";
 
 export function SiteFooter() {
+  const { t } = useI18n();
+
+  const columns = [
+    {
+      title: t("footer_col_product", "Mahsulot"),
+      items: [
+        { label: t("nav_analyze", "Video Tahlil"), to: "/analyze" },
+        { label: t("nav_accounts", "Instagram Akkaunt"), to: "/accounts" },
+        { label: t("nav_pricing", "Tariflar"), to: "/pricing" },
+        { label: t("nav_history", "Tahlillar Tarixi"), to: "/history" },
+      ],
+    },
+    {
+      title: t("footer_col_algo", "Algoritmlar"),
+      items: [
+        { label: "Meta Reels 5 Drayveri" },
+        { label: "LiveDune Bozor Benchmarki" },
+        { label: "Gemini 2.0 Flash Dvigateli" },
+      ],
+    },
+    {
+      title: t("footer_col_legal", "Huquqiy & Aloqa"),
+      items: [
+        { label: t("footer_privacy", "Maxfiylik siyosati") },
+        { label: t("footer_terms", "Foydalanish shartlari") },
+        { label: t("footer_contact_tg", "Aloqa: @pray_boy"), href: "https://t.me/pray_boy" },
+        { label: "Tel: +998 93 760 77 27", href: "tel:+998937607727" },
+      ],
+    },
+  ];
+
   return (
     <footer className="border-t border-border/80 bg-surface/40">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
           <Logo withTagline />
           <p className="mt-4 max-w-xs text-xs leading-relaxed text-muted-foreground">
-            NEXREEL AI — Instagram Reels reyting signallari, LiveDune benchmarklari va video tahlili asosida ishlovchi sun'iy intellekt platformasi.
+            {t("footer_desc", "NEXREEL AI — Instagram Reels reyting signallari, LiveDune benchmarklari va video tahlili asosida ishlovchi sun'iy intellekt platformasi.")}
           </p>
         </div>
         {columns.map((col) => (
@@ -69,7 +72,7 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="border-t border-border/60 px-4 py-5 text-center text-[11px] text-muted-foreground font-mono">
-        © {new Date().getFullYear()} NEXREEL AI. Barcha huquqlar himoyalangan.
+        © {new Date().getFullYear()} NEXREEL AI. {t("footer_rights", "Barcha huquqlar himoyalangan.")}
       </div>
     </footer>
   );

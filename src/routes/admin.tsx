@@ -76,10 +76,17 @@ function AdminPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
+        if (
+          user?.email &&
+          (user.email.toLowerCase().includes("farkhadivich") ||
+           user.email.toLowerCase() === "farkhadivichcreatorai@gmail.com")
+        ) {
+          localStorage.setItem("nexreel_admin_device", "true");
+        }
         setIsUnlocked(sessionStorage.getItem("nexreel_admin_unlocked") === "true");
       } catch {}
     }
-  }, []);
+  }, [user]);
   const [pinInput, setPinInput] = useState("");
   const [activeTab, setActiveTab] = useState<
     "pricing" | "users" | "announcements" | "telegram" | "security"
@@ -247,6 +254,10 @@ function AdminPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Boshqaruv paneliga kirish uchun xavfsizlik PIN-kodini kiriting
               </p>
+              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-mono text-cyan-300">
+                <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Admin: {user?.email || "farkhadivichcreatorai@gmail.com"}</span>
+              </div>
             </div>
 
             <form onSubmit={handleUnlock} className="mt-6 space-y-4">

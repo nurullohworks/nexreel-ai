@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -52,66 +52,36 @@ interface AppStore extends AppState {
   canAnalyze: boolean;
 }
 
-export const DEFAULT_USER: AppUser = {
-  id: "creator_pro_user",
-  name: "Creator",
-  email: "creator@nexreel.ai",
-};
-
 const defaultState: AppState = {
-  user: DEFAULT_USER,
+  user: null,
   analyses: seedAnalyses,
   subscription: {
     plan: "free",
     status: "active",
-    renewsAt: "2026-12-31T23:59:59.000Z",
+    renewsAt: "2026-03-01T09:00:00.000Z",
     usedThisMonth: 1,
     monthlyLimit: PLAN_LIMITS.free,
     billingCycle: "monthly",
   },
   instagramConnected: false,
-  instagramAccount: null,
+  instagramAccount: null, // Boshida hech qanday akkaunt ulanmagan
 };
 
-const KEY = "nexreel.state.v4";
-const LEGACY_KEY = "reelpredict.state.v3";
-const AUTH_KEY = "nexreel.auth.user";
+const KEY = "reelpredict.state.v3";
 const AppContext = createContext<AppStore | null>(null);
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState);
   const [hydrated, setHydrated] = useState(false);
 
-  // 1. LocalStorage-dan tiklash (Muntazam sessiya saqlash)
+  // 1. LocalStorage-dan tiklash
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(KEY) || window.localStorage.getItem(LEGACY_KEY);
-      const savedAuth = window.localStorage.getItem(AUTH_KEY);
-
-      let persistentUser: AppUser = DEFAULT_USER;
-      if (savedAuth) {
-        try {
-          const parsedAuth = JSON.parse(savedAuth);
-          if (parsedAuth && (parsedAuth.email || parsedAuth.name)) {
-            persistentUser = parsedAuth;
-          }
-        } catch {}
-      }
-
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<AppState>;
-        setState({
-          ...defaultState,
-          ...parsed,
-          user: parsed.user || persistentUser,
-        });
-      } else {
-        setState((prev) => ({
-          ...prev,
-          user: persistentUser,
-        }));
-      }
-    } catch {}
+      const raw = window.localStorage.getItem(KEY);
+      if (raw) setState({ ...defaultState, ...(JSON.parse(raw) as AppState) });
+    } catch {
+      /* ignore corrupt state */
+    }
     setHydrated(true);
   }, []);
 
@@ -123,46 +93,37 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().then(({ data }) => {
           if (data?.session?.user) {
             const u = data.session.user;
-            const suUser: AppUser = {
-              id: u.id,
-              email: u.email || "",
-              name: u.user_metadata?.full_name || u.email?.split("@")[0] || "Creator",
-            };
-            try {
-              window.localStorage.setItem(AUTH_KEY, JSON.stringify(suUser));
-            } catch {}
             setState((prev) => ({
               ...prev,
-              user: suUser,
+              user: {
+                id: u.id,
+                email: u.email || "",
+                name: u.user_metadata?.full_name || u.email?.split("@")[0] || "Creator",
+              },
             }));
           }
         }).catch(() => {});
 
-        const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
           if (session?.user) {
             const u = session.user;
-            const suUser: AppUser = {
-              id: u.id,
-              email: u.email || "",
-              name: u.user_metadata?.full_name || u.email?.split("@")[0] || "Creator",
-            };
-            try {
-              window.localStorage.setItem(AUTH_KEY, JSON.stringify(suUser));
-            } catch {}
             setState((prev) => ({
               ...prev,
-              user: suUser,
+              user: {
+                id: u.id,
+                email: u.email || "",
+                name: u.user_metadata?.full_name || u.email?.split("@")[0] || "Creator",
+              },
             }));
-          } else if (event === "SIGNED_OUT") {
-            try {
-              window.localStorage.removeItem(AUTH_KEY);
-            } catch {}
+          } else {
             setState((prev) => ({ ...prev, user: null }));
           }
         });
         authListener = listener;
       }
-    } catch {}
+    } catch {
+      /* Supabase not yet configured */
+    }
 
     return () => {
       authListener?.subscription?.unsubscribe();
@@ -174,34 +135,26 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     try {
       window.localStorage.setItem(KEY, JSON.stringify(state));
-      if (state.user) {
-        window.localStorage.setItem(AUTH_KEY, JSON.stringify(state.user));
-      }
-    } catch {}
+    } catch {
+      /* storage unavailable */
+    }
   }, [state, hydrated]);
 
   const signIn = useCallback((email: string, name?: string) => {
-    const newUser: AppUser = {
-      id: `usr_${Date.now()}`,
-      email,
-      name: name || email.split("@")[0] || "Creator",
-    };
-    try {
-      window.localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
-    } catch {}
     setState((s) => ({
       ...s,
-      user: newUser,
+      user: { email, name: name || email.split("@")[0] || "Creator" },
     }));
   }, []);
 
   const signOut = useCallback(async () => {
     try {
-      window.localStorage.removeItem(AUTH_KEY);
       if (supabase?.auth) {
         await supabase.auth.signOut();
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     setState((s) => ({ ...s, user: null }));
   }, []);
 
@@ -230,7 +183,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const setActualViews = useCallback((id: string, views: number) => {
     setState((s) => ({
       ...s,
-      analyses: s.analyses.map((a) => (a.id === id ? { ...a, actualViews: views } : a)),
+      analyses: s.analyses.map((a) =>
+        a.id === id ? { ...a, actualViews: views, status: "Completed" } : a,
+      ),
     }));
   }, []);
 
@@ -240,40 +195,40 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       subscription: {
         ...s.subscription,
         plan,
+        status: "active",
         monthlyLimit: PLAN_LIMITS[plan],
         billingCycle: cycle,
+        renewsAt: new Date(Date.now() + 30 * 86400000).toISOString(),
       },
     }));
   }, []);
 
-  const cancelSubscription = useCallback(() => {
-    setState((s) => ({
-      ...s,
-      subscription: { ...s.subscription, status: "canceled" },
-    }));
-  }, []);
+  const cancelSubscription = useCallback(
+    () => setState((s) => ({ ...s, subscription: { ...s.subscription, status: "canceled" } })),
+    [],
+  );
 
-  const toggleInstagram = useCallback(() => {
-    setState((s) => ({
-      ...s,
-      instagramConnected: !s.instagramConnected,
-    }));
-  }, []);
+  const toggleInstagram = useCallback(
+    () => setState((s) => ({ ...s, instagramConnected: !s.instagramConnected })),
+    [],
+  );
 
   const connectInstagram = useCallback((account: Partial<InstagramAccount>) => {
+    const handle = account.handle?.startsWith("@") ? account.handle : `@${account.handle || "my.instagram"}`;
+    const newAcc: InstagramAccount = {
+      handle,
+      followers: account.followers || 3000,
+      avgReelViews: account.avgReelViews || 1500,
+      avgEngagement: account.avgEngagement || 4.8,
+      growth: account.growth || 11.2,
+      consistency: account.consistency || 85,
+      niche: account.niche || "business",
+      isConnected: true,
+    };
     setState((s) => ({
       ...s,
       instagramConnected: true,
-      instagramAccount: {
-        handle: account.handle || "@creator",
-        followers: account.followers || 10000,
-        avgReelViews: account.avgReelViews || 2500,
-        avgEngagement: account.avgEngagement || 4.2,
-        growth: account.growth || 2.5,
-        consistency: account.consistency || 85,
-        niche: account.niche || "business",
-        isConnected: true,
-      },
+      instagramAccount: newAcc,
     }));
   }, []);
 
@@ -284,10 +239,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       instagramAccount: null,
     }));
   }, []);
-
-  const canAnalyze = useMemo(() => {
-    return state.subscription.usedThisMonth < state.subscription.monthlyLimit;
-  }, [state.subscription]);
 
   const value = useMemo<AppStore>(
     () => ({
@@ -302,7 +253,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       toggleInstagram,
       connectInstagram,
       disconnectInstagram,
-      canAnalyze,
+      canAnalyze: state.subscription.usedThisMonth < state.subscription.monthlyLimit,
     }),
     [
       state,
@@ -316,21 +267,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       toggleInstagram,
       connectInstagram,
       disconnectInstagram,
-      canAnalyze,
     ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-export function useAppStore(): AppStore {
+export function useAppStore() {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useAppStore must be used within an AppStoreProvider");
+  if (!ctx) throw new Error("useAppStore must be used inside AppStoreProvider");
   return ctx;
 }
 
-export function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
+export function formatNumber(n: number) {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K`;
+  return `${n}`;
 }

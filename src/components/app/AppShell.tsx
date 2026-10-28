@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   BarChart3,
   CreditCard,
@@ -10,6 +10,7 @@ import {
   Settings,
   Upload,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
@@ -24,15 +25,25 @@ const nav = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, signIn, signOut, subscription, hydrated } = useAppStore();
+  const { user, signOut, subscription, hydrated } = useAppStore();
   const navigate = useNavigate();
 
-  // Agar foydalanuvchi bir marta kirsa yoki sessiya bo'lsa, uni to'xtatmaymiz - doimiy ochiq turadi
-  useEffect(() => {
-    if (hydrated && !user) {
-      signIn("creator@nexreel.ai", "Creator");
-    }
-  }, [hydrated, user, signIn]);
+  if (hydrated && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-5 bg-background">
+        <div className="surface-card max-w-sm p-8 text-center border border-border/80 shadow-2xl rounded-2xl">
+          <Logo className="justify-center" />
+          <h1 className="mt-6 text-xl font-bold tracking-tight text-foreground">Xush kelibsiz!</h1>
+          <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+            Reels videolaringizni tahlil qilish va hisobotlarni ko‘rish uchun tizimga kiring.
+          </p>
+          <Button asChild className="mt-6 w-full shadow-lg shadow-cyan-500/20 font-semibold">
+            <Link to="/login">Tizimga kirish</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-cyan-500/30 selection:text-cyan-200">

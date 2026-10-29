@@ -1,15 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Check, Send, Phone, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Send, Phone, ShieldCheck, KeyRound, Sparkles, Loader2 } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/lib/app-store";
 import type { PlanId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PaymentModal } from "@/components/app/PaymentModal";
 import { TELEGRAM_PAYMENT } from "@/lib/services/payment";
 import { useI18n } from "@/lib/i18n";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -33,9 +35,68 @@ function Pricing() {
   const [yearly, setYearly] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("pro");
-  const { user, setPlan, pricingConfig } = useAppStore();
+  const [promoInput, setPromoInput] = useState("");
+  const [isActivating, setIsActivating] = useState(false);
+
+  const { user, setPlan, pricingConfig, activateCode, activateGrantToken } = useAppStore();
   const { t } = useI18n();
   const navigate = useNavigate();
+
+  // Telegram bot orqali 1-bosishda yuborilgan dostup havolasini avtomatik faollashtirish
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const grantToken = params.get("grant") || params.get("grant_token");
+    const code = params.get("code") || params.get("activation_code");
+
+    if (grantToken) {
+      const res = activateGrantToken(grantToken);
+      if (res.success) {
+        toast.success(res.message, {
+          description: "Telegram orqali 1-bosishda dostup muvaffaqiyatli taqdim etildi!",
+          duration: 6000,
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+      } else {
+        toast.error(res.message);
+      }
+    } else if (code) {
+      const res = activateCode(code);
+      if (res.success) {
+        toast.success(res.message, {
+          description: "Aktivatsiya kodingiz muvaffaqiyatli qabul qilindi!",
+          duration: 6000,
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+      } else {
+        toast.error(res.message);
+      }
+    }
+  }, [activateCode, activateGrantToken]);
+
+  const handleManualActivate = () => {
+    if (!promoInput.trim()) {
+      toast.error("Iltimos, faollashtirish kodini kiriting!");
+      return;
+    }
+    setIsActivating(true);
+    const res = activateCode(promoInput.trim());
+    if (res.success) {
+      toast.success(res.message, {
+        description: "Hisobingiz muvaffaqiyatli yangilandi!",
+        duration: 5000,
+      });
+      setPromoInput("");
+      setTimeout(() => {
+        void navigate({ to: "/dashboard" });
+      }, 800);
+    } else {
+      toast.error(res.message);
+    }
+    setIsActivating(false);
+  };
 
   const plans: {
     id: PlanId;
@@ -131,7 +192,7 @@ function Pricing() {
               </span>
               <span className="text-sky-500/60 hidden sm:inline">•</span>
               <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                <ShieldCheck className="h-3 w-3" /> 5 daqiqada faollashtirish
+                <ShieldCheck className="h-3 w-3" /> Telegram botda 1-bosishda dostup berish
               </span>
             </div>
 
@@ -224,6 +285,49 @@ function Pricing() {
               );
             })}
           </div>
+
+          {/* Quick Activation Code Card */}
+          <div className="mt-12 max-w-xl mx-auto p-6 rounded-2xl border border-cyan-500/30 bg-surface/60 backdrop-blur-md">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="h-8 w-8 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
+                <KeyRound className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Aktivatsiya kodingiz bormi?
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Telegram orqali to'lov qilganingizda berilgan faollashtirish kodini kiriting:
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <Input
+                placeholder="Masalan: PRO-30D-XXXXXX yoki NEX-PRO-7727"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                className="h-10 text-xs font-mono uppercase bg-background/80 border-border/80 focus:border-cyan-400"
+              />
+              <Button
+                disabled={!promoInput.trim() || isActivating}
+                onClick={handleManualActivate}
+                className="h-10 px-5 text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shrink-0 shadow-md shadow-cyan-500/20"
+              >
+                {isActivating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Tekshirilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    Faollashtirish
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -231,7 +335,7 @@ function Pricing() {
       <PaymentModal
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
-        planId={selectedPlan}
+        selectedPlan={selectedPlan}
       />
     </div>
   );

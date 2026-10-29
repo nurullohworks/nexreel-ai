@@ -15,6 +15,7 @@ import {
   type PaymentRequestPayload,
   DEFAULT_BOT_CONFIG,
 } from "./services/telegram-bot";
+import { ActivationService } from "./services/activation";
 
 export interface AppUser {
   id?: string;
@@ -137,6 +138,8 @@ export interface AppStore extends AppState {
   approvePaymentRequest: (id: string, days?: number) => void;
   rejectPaymentRequest: (id: string) => void;
   updateTelegramBotConfig: (config: Partial<TelegramBotConfig>) => void;
+  activateCode: (code: string) => { success: boolean; message: string; plan?: PlanId };
+  activateGrantToken: (token: string) => { success: boolean; message: string; plan?: PlanId; userContact?: string };
 }
 
 export const DEFAULT_USER: AppUser = {
@@ -595,11 +598,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const addPaymentRequest = useCallback(
     async (req: Omit<PaymentRequestPayload, "id" | "createdAt" | "status">) => {
+      const reqId = `req_${Date.now()}`;
+      
+      // Telegram Botga 1-klik tugmalari va aktivatsiya kodi bilan xabar yuborish
+      const botRes = await TelegramBotService.sendPaymentAlert(
+        { ...req, id: reqId },
+        adminData.telegramBotConfig
+      );
+
       const newReq: PaymentRequestPayload = {
         ...req,
-        id: `req_${Date.now()}`,
+        id: reqId,
         createdAt: new Date().toISOString(),
         status: "pending",
+        activationCode: botRes.activationCode,
       };
 
       setAdminData((prev) => {
@@ -613,8 +625,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         return updated;
       });
 
-      // Telegram Botga xabar yuborish
-      const botRes = await TelegramBotService.sendPaymentAlert(req, adminData.telegramBotConfig);
       return botRes;
     },
     [adminData.telegramBotConfig],
@@ -663,6 +673,74 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const activateCode = useCallback(
+    (codeRaw: string) => {
+      const verified = ActivationService.verifyCode(codeRaw);
+      if (!verified.valid) {
+        return {
+          success: false,
+          message: verified.error || "Aktivatsiya kodi noto'g'ri yoki muddati o'tgan.",
+        };
+      }
+
+      const expiresAt = new Date(Date.now() + verified.days * 86400000).toISOString();
+      setPlan(verified.plan, verified.days > 90 ? "yearly" : "monthly", expiresAt);
+      ActivationService.markCodeUsed(codeRaw);
+
+      if (state.user?.email) {
+        grantUserAccess(
+          state.user.email,
+          verified.plan,
+          verified.days,
+          `Aktivatsiya kodi orqali (${codeRaw.trim().toUpperCase()})`
+        );
+      }
+
+      return {
+        success: true,
+        message: `Tabriklaymiz! ${
+          verified.plan === "agency" ? "Agency & SMM" : "Pro Yaratuvchi"
+        } tarifi ${verified.days} kunga muvaffaqiyatli faollashtirildi!`,
+        plan: verified.plan,
+      };
+    },
+    [setPlan, state.user, grantUserAccess],
+  );
+
+  const activateGrantToken = useCallback(
+    (tokenStr: string) => {
+      const verified = ActivationService.verifyGrantToken(tokenStr);
+      if (!verified.valid || !verified.data) {
+        return { success: false, message: verified.error || "Dostup tokeni yaroqsiz." };
+      }
+
+      const { plan, days, contact, reqId } = verified.data;
+      const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+      setPlan(plan, days > 90 ? "yearly" : "monthly", expiresAt);
+
+      grantUserAccess(
+        contact,
+        plan,
+        days,
+        `Telegram 1-bosish orqali tasdiqlangan dostup (${contact})`
+      );
+
+      if (reqId) {
+        approvePaymentRequest(reqId, days);
+      }
+
+      return {
+        success: true,
+        message: `Muvaffaqiyatli! ${contact} uchun ${
+          plan === "agency" ? "Agency" : "Pro"
+        } tarifi (${days} kun) faollashtirildi!`,
+        plan,
+        userContact: contact,
+      };
+    },
+    [setPlan, grantUserAccess, approvePaymentRequest],
+  );
+
   const value = useMemo<AppStore>(
     () => ({
       ...state,
@@ -701,6 +779,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       approvePaymentRequest,
       rejectPaymentRequest,
       updateTelegramBotConfig,
+      activateCode,
+      activateGrantToken,
     }),
     [
       state,
@@ -729,6 +809,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       approvePaymentRequest,
       rejectPaymentRequest,
       updateTelegramBotConfig,
+      activateCode,
+      activateGrantToken,
     ],
   );
 

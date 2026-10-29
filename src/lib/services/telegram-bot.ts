@@ -1,3 +1,6 @@
+import type { PlanId } from "../types";
+import { ActivationService } from "./activation";
+
 export interface TelegramBotConfig {
   botToken: string;
   chatId: string;
@@ -15,6 +18,7 @@ export interface PaymentRequestPayload {
   note?: string;
   createdAt: string;
   status: "pending" | "approved" | "rejected";
+  activationCode?: string;
 }
 
 const STORAGE_KEY = "nexreel.telegram.bot_config";
@@ -55,15 +59,14 @@ export class TelegramBotService {
   }
 
   /**
-   * Sends a payment alert notification to the admin Telegram Bot
+   * Sends an interactive payment alert notification with 1-click access buttons to Admin Telegram Bot
    */
   static async sendPaymentAlert(
-    payload: Omit<PaymentRequestPayload, "id" | "createdAt" | "status">,
+    payload: Omit<PaymentRequestPayload, "id" | "createdAt" | "status"> & { id?: string },
     overrideConfig?: TelegramBotConfig
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; activationCode?: string }> {
     const config = overrideConfig || this.getConfig();
 
-    // Agar token bo'lmasa, ogohlantirish beramiz
     if (!config.botToken || !config.chatId) {
       console.warn("Telegram Bot Token yoki Chat ID sozlanmagan.");
       return {
@@ -71,6 +74,18 @@ export class TelegramBotService {
         error: "Telegram Bot Token yoki Chat ID kiritilmagan. Admin panelda sozlang.",
       };
     }
+
+    const reqId = payload.id || `req_${Date.now()}`;
+    const plan = (payload.planId as PlanId) || "pro";
+
+    // 1. Aktivatsiya kodi va 1-bosishda dostup beruvchi tokenlar
+    const activationCode = ActivationService.generateCode(plan, 30);
+    const grantToken30 = ActivationService.generateGrantToken(payload.userContact, plan, 30, reqId);
+    const grantToken365 = ActivationService.generateGrantToken(payload.userContact, plan, 365, reqId);
+
+    const grantUrl30 = ActivationService.buildGrantUrl(grantToken30);
+    const grantUrl365 = ActivationService.buildGrantUrl(grantToken365);
+    const codeUrl = ActivationService.buildCodeUrl(activationCode);
 
     const dateStr = new Date().toLocaleString("uz-UZ", {
       timeZone: "Asia/Tashkent",
@@ -81,16 +96,66 @@ export class TelegramBotService {
       minute: "2-digit",
     });
 
-    const message = `🔔 <b>YANGI TO'LOV TASDIQLASH SO'ROVI!</b>
+    const isTgHandle =
+      payload.userContact.startsWith("@") ||
+      (!payload.userContact.includes("@") && payload.userContact.length > 3 && !payload.userContact.startsWith("+"));
+    const cleanTgHandle = payload.userContact.replace("@", "").trim();
+
+    // Telegram uchun boyitilgan chiroyli xabar
+    const message = `🔔 <b>YANGI TO'LOV & DOSTUP SO'ROVI!</b>
 ━━━━━━━━━━━━━━━━━━━━
 👤 <b>Mijoz:</b> <code>${payload.userContact}</code>
 💳 <b>Tarif:</b> <b>${payload.planName}</b>
 💰 <b>To'lov miqdori:</b> <b>${payload.priceUzSum.toLocaleString()} so'm</b> ($${payload.priceUsd})
 ⚡ <b>AI Tahlil limiti:</b> ${payload.analysisLimit} ta video
 🕒 <b>Vaqti:</b> ${dateStr}
-📝 <b>Izoh / Chek:</b> ${payload.note ? `<i>${payload.note}</i>` : "Mijoz to'lov chekini tashlaganini bildirdi."}
+📝 <b>Izoh / Chek:</b> ${payload.note ? `<i>${payload.note}</i>` : "To'lov chekini tashlaganini bildirdi."}
 ━━━━━━━━━━━━━━━━━━━━
-👉 <i>Admin panelga kiring va to'lovni tekshirib, mijozga dostup bering!</i>`;
+🔑 <b>Aktivatsiya Kodi:</b> <code>${activationCode}</code>
+🔗 <b>Mijoz uchun havola:</b>
+${codeUrl}
+━━━━━━━━━━━━━━━━━━━━
+👇 <b>DOSTUP BERISH UCHUN BITTA TUGMANI BOSING:</b>`;
+
+    // 1-bosishda dostup berish tugmalari (Inline Keyboard)
+    const inlineKeyboard: any[][] = [
+      [
+        {
+          text: `✅ 1-BOSISHDA DOSTUP BERISH (30 KUN)`,
+          url: grantUrl30,
+        },
+      ],
+      [
+        {
+          text: `⚡ 1 YILLIK VIP DOSTUP BERISH`,
+          url: grantUrl365,
+        },
+      ],
+    ];
+
+    if (isTgHandle) {
+      const tgMsg = encodeURIComponent(
+        `Assalomu alaykum! NEXREEL AI platformasida sizning ${payload.planName} obunangiz 30 kunga faollashtirildi!\n\nSizning shaxsiy aktivatsiya kodingiz: ${activationCode}\n\nKirish havolasi: ${codeUrl}`
+      );
+      inlineKeyboard.push([
+        {
+          text: `💬 Mijozga Telegramdan yozish (@${cleanTgHandle})`,
+          url: `https://t.me/${cleanTgHandle}?text=${tgMsg}`,
+        },
+      ]);
+    }
+
+    // Telegram bot callback tugmasi (bot serveri ishlayotgan bo'lsa)
+    inlineKeyboard.push([
+      {
+        text: `⚡ Telegramda tasdiqlash`,
+        callback_data: `approve_${reqId}_30`,
+      },
+      {
+        text: `❌ Rad etish`,
+        callback_data: `reject_${reqId}`,
+      },
+    ]);
 
     try {
       const url = `https://api.telegram.org/bot${config.botToken.trim()}/sendMessage`;
@@ -101,17 +166,20 @@ export class TelegramBotService {
           chat_id: config.chatId.trim(),
           text: message,
           parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: inlineKeyboard,
+          },
         }),
       });
 
       const data = await response.json();
       if (data.ok) {
-        return { success: true };
+        return { success: true, activationCode };
       } else {
-        return { success: false, error: data.description || "Telegram API xatoligi" };
+        return { success: false, error: data.description || "Telegram API xatoligi", activationCode };
       }
     } catch (err: any) {
-      return { success: false, error: err.message || "Internet ulanishida xatolik" };
+      return { success: false, error: err.message || "Internet ulanishida xatolik", activationCode };
     }
   }
 
@@ -123,7 +191,7 @@ export class TelegramBotService {
       return { success: false, error: "Bot Token va Chat ID to'ldirilishi shart!" };
     }
 
-    const testText = `✅ <b>NEXREEL AI — Telegram Bot Ulandi!</b>\n\nBotingiz platforma bilan muvaffaqiyatli bog'landi. Endi saytda to'lov qilinganda barcha xabarlar shu yerga keladi.\n\n🕒 Vaqt: ${new Date().toLocaleString()}`;
+    const testText = `✅ <b>NEXREEL AI — Telegram Bot Ulandi!</b>\n\nBotingiz platforma bilan muvaffaqiyatli bog'landi. Endi saytda to'lov qilinganda barcha xabarlar shu yerga keladi va siz bitta tugma bosish bilan dostup bera olasiz.\n\n🕒 Vaqt: ${new Date().toLocaleString()}`;
 
     try {
       const url = `https://api.telegram.org/bot${config.botToken.trim()}/sendMessage`;

@@ -223,7 +223,7 @@ function Accounts() {
                 >
                   {LIVEDUNE_NICHES.map((n) => (
                     <option key={n.key} value={n.key}>
-                      {n.name} вЂ” {n.description}
+                      {n.name} — {n.description}
                     </option>
                   ))}
                 </select>

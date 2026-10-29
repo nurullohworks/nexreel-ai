@@ -79,25 +79,13 @@ export function AuthPanel({ mode }: { mode: "login" | "signup" }) {
     }, 400);
   };
 
-  const handleGoogleAuthClick = async () => {
-    // 1. Agar Supabase OAuth sozlangan bo'lsa tekshiramiz
-    try {
-      if (supabase?.auth) {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin + "/dashboard",
-          },
-        });
-        if (!error) {
-          return;
-        }
-      }
-    } catch {
-      // Supabase Google provider o'chiqligida to'g'ridan-to'g'ri Google dialogini ochamiz
+  const handleGoogleAuthClick = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
-
-    // 2. Google Account Chooser modalini ochish
+    // To'g'ridan-to'g'ri Google hisoblarini tanlash modalini ochamiz
+    // (Supabase provider o'chiqligi sababli brauzerni 400 xatolik sahifasiga yo'naltirmaymiz)
     setGoogleModalOpen(true);
   };
 
@@ -233,13 +221,41 @@ export function AuthPanel({ mode }: { mode: "login" | "signup" }) {
           <Button
             type="button"
             variant="outline"
-            className="mt-7 w-full h-11 border-border/80 hover:border-cyan-500/40 hover:bg-surface-2 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all shadow-sm"
+            className="mt-7 w-full h-11 border-border/80 hover:border-cyan-500/40 hover:bg-surface-2 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all shadow-sm cursor-pointer"
             onClick={handleGoogleAuthClick}
             disabled={loading}
           >
             <GoogleIcon className="h-4 w-4 shrink-0" />
             <span>{t("auth_google_btn", "Google bilan davom etish")}</span>
           </Button>
+
+          {/* Quick 1-click Farkhadivich Google Account Login */}
+          <button
+            type="button"
+            onClick={() => handleGoogleSuccess("farkhadivichcreatorai@gmail.com", "Farkhadivich")}
+            className="mt-2.5 w-full flex items-center justify-between p-2.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 transition-all text-left group cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-cyan-400 to-emerald-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-sm">
+                F
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-foreground">Farkhadivich</p>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.2 text-[8px] font-mono font-bold text-emerald-300">
+                    <ShieldCheck className="h-2.5 w-2.5" />
+                    Admin
+                  </span>
+                </div>
+                <p className="text-[10px] font-mono text-cyan-300 truncate">
+                  farkhadivichcreatorai@gmail.com
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-cyan-400 group-hover:underline shrink-0">
+              Tezkor kirish →
+            </span>
+          </button>
 
           <div className="my-6 flex items-center gap-3 text-[11px] uppercase tracking-widest text-muted-foreground">
             <span className="h-px flex-1 bg-border/70" />

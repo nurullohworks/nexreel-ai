@@ -14,55 +14,58 @@ export interface AiAnalysisInput {
   accountHandle?: string;
 }
 
-const META_SYSTEM_PROMPT = `Sen Meta Reels reyting algoritmi va LiveDune tahliliy ma'lumotlar bazasi asosida ishlovchi professional Instagram kontent va virallik diagnostikasi mutaxassisisan.
+const META_SYSTEM_PROMPT = `Sen Meta Reels reyting algoritmi va LiveDune tahliliy ma'lumotlar bazasi asosida ishlovchi professional Instagram kontent va to'liq xronologik video diagnostikasi mutaxassisisan.
 
 VAZIFA:
-Berilgan video parametrlari, nisha va ulangan Instagram akkauntning o'rtacha ko'rishlar soni (baseline) asosida Meta Reels reytingining 5 ta asosiy drayverini tahlil qil:
-1. 3-soniyalik Hook Retention (0-3s drop-off: 65% dan oshsa algoritm videoni muzlatadi).
-2. DM Shares / Sends per Reach (Meta'ning #1 virallik omili: do'stlarga yuborish triggersi).
-3. To'liq ko'rish & Loop Factor (qayta ko'rishga undovchi ritm va ssenariy).
-4. Save (saqlab olish) va foydalilik qiymati (Evergreen tarqatish).
-5. Pacing va montaj dinamikasi (har 2-3 soniyadagi o'zgarishlar, TikTok/CapCut logotiplari ta'siri).
+Berilgan videoning FAQAT dastlabki 3 soniyasini emas, balki boshidan oxirigacha TO'LIQ BUTUN XRONOMETRAJINI (0-soniyadan oxirgi soniyasigacha) bosqichma-bosqich tahlil qil:
+1. 0-3s Hook va Dastlabki Retention: Ilk 3 soniyadagi e'tibor, vizual intriga, matn joylashuvi.
+2. 3s dan o'rtasigacha (Pacing & Audio Ritm): Syujet rivoji, har 1.8-2.5 soniyada kadr dinamikasi o'zgarishi, B-roll kiritmalar, ovoz balandligi va sokin pauzalar drop-off xavfi.
+3. Kulminatsiya va Qimmatli Qism (Asosiy Value): Tomoshabinni videoni do'stiga yuborishga undovchi trigger (DM Shares per Reach — Meta #1 signali) va saqlab olish (Save) qiymati.
+4. Yakuniy Qism, Outro va Loop Faktori: Video oxirining boshiga ulanishi (Seamless Loop), to'g'ri chaqiruv (CTA) va suv belgilari/logotiplar (TikTok/CapCut) tozaligi.
 
-MUHIM: Kutilayotgan ko'rishlar sonini (estimated_views_min va estimated_views_max) havoday olinmagan holda, berilgan akkauntning o'rtacha ko'rishlari (baseline) ga mutanosib qilib hisobla!
+MUHIM: 
+- "timeline_analysis" massivida videoning boshidan oxirigacha bo'lgan BARCHA segmentlarini (kamida 4-6 ta aniq soniyali bosqich) keltir!
+- Kutilayotgan ko'rishlar sonini berilgan akkauntning o'rtacha ko'rishlari (baseline) ga mutanosib qilib hisobla!
 
 JAVOB FORMATI: Faqat to'g'ridan-to'g'ri toza JSON obyekt qaytar:
 {
-  "overall_score": 85,
-  "hook_score": 88,
-  "retention_score": 79,
-  "dm_share_score": 84,
-  "save_score": 78,
-  "pacing_score": 82,
-  "engagement_potential": 84,
-  "visual_quality": 90,
-  "audience_fit": 86,
-  "cta_score": 72,
-  "viral_probability": 81,
-  "estimated_views_min": 1800,
-  "estimated_views_max": 4500,
-  "confidence_score": 88,
-  "strengths": ["Kuchli vizual hook", "DM ulashish ehtimoli yuqori", "Dinamik montaj"],
-  "weaknesses": ["00:08 soniyada dinamika pasayishi", "CTA yetarlicha aniq emas"],
-  "risk_factors": ["Watermark mavjudligi Explore chekloviga olib kelishi mumkin"],
+  "overall_score": 88,
+  "hook_score": 90,
+  "retention_score": 84,
+  "dm_share_score": 86,
+  "save_score": 80,
+  "pacing_score": 85,
+  "engagement_potential": 86,
+  "visual_quality": 92,
+  "audience_fit": 88,
+  "cta_score": 78,
+  "viral_probability": 86,
+  "estimated_views_min": 2400,
+  "estimated_views_max": 5800,
+  "confidence_score": 92,
+  "strengths": ["0-3s kuchli vizual hook", "O'rta qismda dinamik kadrlar almashinuvi", "DM ulashish ehtimoli yuqori"],
+  "weaknesses": ["00:07 soniyada ritm 1.5s ga sekinlashgan", "Oxirgi 3s da CTA yetarlicha keskin emas"],
+  "risk_factors": ["Agar watermark bo'lsa: Reach sun'iy cheklanadi"],
   "recommendations": [
     {
       "priority": "high",
-      "title": "Hook qismini tezlashtirish",
-      "current": "Dastlabki 3 soniya sokin boshlangan",
-      "recommended": "Birinchi soniyadanoq kutilmagan vizual yoki savol bering",
-      "why": "0-3s ushlab qolish 70% dan oshishi kerak",
-      "impact": 25,
-      "current_score": 68,
-      "potential_score": 92
+      "title": "O'rta qism dinamikasini tezlashtirish",
+      "current": "00:06 - 00:09 oralig'ida statik kadr turib qolgan",
+      "recommended": "Har 2 soniyada zoom yoki B-roll qo'shib tomoshabin diqqatini ushlang",
+      "why": "O'rta qismdagi drop-off retentionni 20% ga tushiradi",
+      "impact": 22,
+      "current_score": 72,
+      "potential_score": 94
     }
   ],
   "timeline_analysis": [
-    { "from_sec": 0, "to_sec": 3, "label": "Hook", "verdict": "Strong", "note": "Tomoshabin e'tiborini tortadi" },
-    { "from_sec": 3, "to_sec": 12, "label": "Asosiy qism", "verdict": "Good", "note": "Mavzu tushuntirilmoqda" },
-    { "from_sec": 12, "to_sec": 18, "label": "Xulosa va CTA", "verdict": "Average", "note": "Izoh qoldirishga chaqiruvni kuchaytirish lozim" }
+    { "from_sec": 0, "to_sec": 3, "label": "0-3s Hook & Kirish", "verdict": "Strong", "note": "Dinamik boshlanish, e'tiborni tortadi" },
+    { "from_sec": 3, "to_sec": 8, "label": "Syujet & Rivojlanish", "verdict": "Good", "note": "Mavzuning ochilishi va kadr ritmi" },
+    { "from_sec": 8, "to_sec": 14, "label": "Kulminatsiya & Asosiy Qiymat", "verdict": "Strong", "note": "DM ulashish triggersi va asosiy maslahat" },
+    { "from_sec": 14, "to_sec": 20, "label": "Saqlab Olish (Save) & Xulosa", "verdict": "Good", "note": "Qayta ko'rishga undovchi qism" },
+    { "from_sec": 20, "to_sec": 24, "label": "Loop Faktor & Yakuniy CTA", "verdict": "Average", "note": "Video oxirining boshiga ulanishi" }
   ],
-  "final_verdict": "Video yuqori virallik potensialiga ega. Tavsiya etilgan tuzatishlar bilan Explore sahifasiga chiqish imkoniyati 80%+."
+  "final_verdict": "Video butun xronometraj bo'yicha yuqori virallik potensialiga ega. O'rta qismdagi kichik tuzatishlar bilan Explore sahifasiga chiqish imkoniyati 85%+."
 }`;
 
 export async function analyzeVideoWithAI(input: AiAnalysisInput): Promise<Analysis> {
@@ -194,7 +197,7 @@ Iltimos, yuqoridagi JSON formatda tahlilni to'liq qaytaring.`
     baseAnalysis.prediction.viral_probability = Math.max(15, baseAnalysis.prediction.viral_probability - 35);
     baseAnalysis.prediction.estimated_view_min = Math.round(baselineViews * 0.25);
     baseAnalysis.prediction.estimated_view_max = Math.round(baselineViews * 0.65);
-    baseAnalysis.prediction.risk_factors.unshift("TikTok/CapCut suv belgisi aniqlandi вЂ” Meta algoritmi tarqatishni 80% gacha cheklaydi.");
+    baseAnalysis.prediction.risk_factors.unshift("TikTok/CapCut suv belgisi aniqlandi — Meta algoritmi tarqatishni 80% gacha cheklaydi.");
     baseAnalysis.verdict.algorithmVerdict = "UCHMAYDI";
     baseAnalysis.verdict.summary = "Watermark sababli Meta algoritmi ushbu videoni Explore sahifasiga chiqarmaydi. Logotipni olib tashlang.";
   }
@@ -275,6 +278,12 @@ function buildCompleteAnalysis(parsed: any, input: AiAnalysisInput): Analysis {
     }
   ];
 
+  const t1 = Math.min(3, Math.max(2, Math.round(durationSec * 0.15)));
+  const t2 = Math.round(durationSec * 0.38);
+  const t3 = Math.round(durationSec * 0.68);
+  const t4 = Math.round(durationSec * 0.88);
+  const t5 = durationSec;
+
   const timeline = parsed.timeline_analysis?.map((t: any) => ({
     from: t.from_sec ?? 0,
     to: t.to_sec ?? 3,
@@ -282,9 +291,11 @@ function buildCompleteAnalysis(parsed: any, input: AiAnalysisInput): Analysis {
     verdict: (t.verdict === "Strong" || t.verdict === "Kuchli" ? "Strong" : t.verdict === "Good" || t.verdict === "Yaxshi" ? "Good" : t.verdict === "Average" || t.verdict === "O'rtacha" ? "Average" : "Weak") as "Strong" | "Good" | "Average" | "Weak",
     note: t.note || "",
   })) || [
-    { from: 0, to: 3, label: "0-3s Hook", verdict: hookScore >= 80 ? "Strong" : "Average", note: "Kirish qismi" },
-    { from: 3, to: Math.round(durationSec * 0.7), label: "Asosiy ritm", verdict: retentionScore >= 75 ? "Good" : "Average", note: "Kontent qismi" },
-    { from: Math.round(durationSec * 0.7), to: durationSec, label: "Xulosa & CTA", verdict: "Good", note: "Yakuniy chaqiruv" }
+    { from: 0, to: t1, label: "0-3s Hook & Kirish", verdict: hookScore >= 80 ? "Strong" : "Average", note: "Tomoshabin e'tibori ushlab qolinmoqda" },
+    { from: t1, to: t2, label: "Syujet & Pacing Dinamikasi", verdict: pacingScore >= 78 ? "Good" : "Average", note: "Kadrlar almashinuvi va ritm" },
+    { from: t2, to: t3, label: "Kulminatsiya & DM Triggeri", verdict: dmSharePotential >= 78 ? "Strong" : "Good", note: "Asosiy qimmatli fikr va ulashish signali" },
+    { from: t3, to: t4, label: "Saqlab Olish (Save Qiymati)", verdict: savePotential >= 75 ? "Good" : "Average", note: "Foydali xulosa va saqlash triggersi" },
+    { from: t4, to: t5, label: "Loop Faktor & Yakuniy Outro", verdict: retentionScore >= 75 ? "Strong" : "Average", note: "Qayta ko'rishga uzluksiz ulanish" },
   ];
 
   return {

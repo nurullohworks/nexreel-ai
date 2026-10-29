@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Loader2,
   AlertCircle,
+  KeyRound,
 } from "lucide-react";
 import {
   Dialog,
@@ -29,24 +30,32 @@ import { toast } from "sonner";
 interface PaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedPlan: PlanId;
+  selectedPlan?: PlanId;
+  planId?: PlanId;
 }
 
-export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalProps) {
-  const { user, pricingConfig, addPaymentRequest } = useAppStore();
-  const [copiedType, setCopiedType] = useState<"tg" | "phone" | null>(null);
+export function PaymentModal(props: PaymentModalProps) {
+  const { open, onOpenChange } = props;
+  const selectedPlan: PlanId = props.selectedPlan || props.planId || "pro";
+
+  const { user, pricingConfig, addPaymentRequest, activateCode } = useAppStore();
+  const [copiedType, setCopiedType] = useState<"tg" | "phone" | "code" | null>(null);
 
   // Steps: 'checkout' -> 'notify_admin' -> 'success'
   const [step, setStep] = useState<"checkout" | "notify_admin" | "success">("checkout");
   const [userContact, setUserContact] = useState("");
   const [receiptNote, setReceiptNote] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string>("");
+
+  // Promo code manual input
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [isActivatingCode, setIsActivatingCode] = useState(false);
 
   const plan = pricingConfig[selectedPlan] || PLAN_PRICING[selectedPlan] || PLAN_PRICING.pro;
-
   const telegramUrl = PaymentService.generateTelegramUrl(selectedPlan, user?.email, plan);
 
-  const copyToClipboard = (text: string, type: "tg" | "phone") => {
+  const copyToClipboard = (text: string, type: "tg" | "phone" | "code") => {
     navigator.clipboard.writeText(text);
     setCopiedType(type);
     toast.success("Nusxa olindi!", { description: text });
@@ -85,6 +94,10 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
         note: receiptNote.trim(),
       });
 
+      if (res.activationCode) {
+        setGeneratedCode(res.activationCode);
+      }
+
       if (res.success) {
         toast.success("Xabar administrator Telegram botiga muvaffaqiyatli yuborildi!");
       } else {
@@ -98,10 +111,28 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
     }
   };
 
+  const handleActivateManualCode = () => {
+    if (!promoCodeInput.trim()) return;
+    setIsActivatingCode(true);
+    const res = activateCode(promoCodeInput.trim());
+    if (res.success) {
+      toast.success(res.message, {
+        description: "Tarifingiz muvaffaqiyatli faollashtirildi!",
+        duration: 5000,
+      });
+      handleClose();
+    } else {
+      toast.error(res.message);
+    }
+    setIsActivatingCode(false);
+  };
+
   const handleClose = () => {
     setStep("checkout");
     setUserContact("");
     setReceiptNote("");
+    setPromoCodeInput("");
+    setGeneratedCode("");
     onOpenChange(false);
   };
 
@@ -138,75 +169,62 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
                     ${plan.priceUsd} / oyiga
                   </span>
                   <span className="text-[11px] text-muted-foreground block mt-1">
-                    {plan.analysisLimit} ta AI tahlil
+                    {plan.analysisLimit} ta video tahlili
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Telegram Direct CTA Button */}
-            <div className="mt-4">
-              <Button
-                size="lg"
-                className="w-full h-12 bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white font-bold text-sm shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2.5 transition-all active:scale-[0.99]"
-                onClick={handleOpenTelegram}
-              >
-                <Send className="h-4 w-4" />
-                <span>Telegram orqali to'lov qilish (@{TELEGRAM_PAYMENT.username})</span>
-                <ExternalLink className="h-3.5 w-3.5 opacity-80" />
-              </Button>
-              <p className="text-[11px] text-center text-muted-foreground mt-2">
-                Tugmani bossangiz, avtomatik to'lov ma'lumotlari bilan Telegram ochiladi.
-              </p>
-            </div>
-
-            {/* Direct Contacts Card */}
-            <div className="mt-4 rounded-xl border border-border/80 bg-secondary/30 p-3.5 space-y-2.5 text-xs">
-              <div className="flex items-center justify-between text-muted-foreground font-medium">
-                <span>To'g'ridan-to'g'ri bog'lanish:</span>
-                <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Onlayn administrator
-                </span>
+            {/* Direct Telegram Admin Payment Method */}
+            <div className="mt-4 space-y-2.5">
+              <div className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>Telegram orqali to'g'ridan-to'g'ri to'lash:</span>
+                <span className="text-[11px] font-mono text-cyan-400">@pray_boy</span>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-lg bg-card/60 border border-border/60">
                 <div className="flex items-center gap-2">
-                  <span className="text-sky-400 font-bold">Telegram:</span>
-                  <a
-                    href={TELEGRAM_PAYMENT.telegramUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-cyan-300 hover:underline"
-                  >
+                  <Send className="h-3.5 w-3.5 text-sky-400" />
+                  <span className="text-muted-foreground text-xs">Telegram:</span>
+                  <span className="font-mono text-cyan-300 font-semibold text-xs">
                     @{TELEGRAM_PAYMENT.username}
-                  </a>
+                  </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-[11px]"
-                  onClick={() => copyToClipboard(`@${TELEGRAM_PAYMENT.username}`, "tg")}
-                >
-                  {copiedType === "tg" ? (
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <Check className="h-3 w-3" /> Nusxalandi
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <Copy className="h-3 w-3" /> Nusxa
-                    </span>
-                  )}
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => copyToClipboard(`@${TELEGRAM_PAYMENT.username}`, "tg")}
+                  >
+                    {copiedType === "tg" ? (
+                      <span className="flex items-center gap-1 text-emerald-400">
+                        <Check className="h-3 w-3" /> Nusxalandi
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Copy className="h-3 w-3" /> Nusxa
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 px-2.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-[11px] border border-sky-500/30"
+                    onClick={handleOpenTelegram}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Ochish
+                  </Button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-lg bg-card/60 border border-border/60">
                 <div className="flex items-center gap-2">
                   <Phone className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-muted-foreground">Telefon:</span>
+                  <span className="text-muted-foreground text-xs">Telefon:</span>
                   <a
                     href={`tel:${TELEGRAM_PAYMENT.phone}`}
-                    className="font-mono text-foreground font-semibold hover:underline"
+                    className="font-mono text-foreground font-semibold hover:underline text-xs"
                   >
                     {TELEGRAM_PAYMENT.displayPhone}
                   </a>
@@ -230,7 +248,35 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
               </div>
 
               <div className="pt-1 text-[11px] text-muted-foreground/80 leading-relaxed">
-                💳 <strong className="text-foreground/90">To'lov turlari:</strong> Click, Payme, Uzcard, Humo, Visa/Mastercard. Chekni yuboring va quyidagi tugma orqali xabar bering.
+                💳 <strong className="text-foreground/90">To'lov turlari:</strong> Click, Payme, Uzcard, Humo, Visa/Mastercard. To'lov qilgach, quyidagi tugma orqali xabar bering.
+              </div>
+            </div>
+
+            {/* Promo / Activation Code Section */}
+            <div className="mt-3 pt-3 border-t border-border/60">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                  <KeyRound className="h-3.5 w-3.5 text-cyan-400" />
+                  Aktivatsiya kodingiz bormi?
+                </span>
+                <span className="text-[10px] text-cyan-400">Darhol faollashtirish</span>
+              </div>
+              <div className="flex gap-1.5">
+                <Input
+                  placeholder="Masalan: PRO-30D-XXXXXX"
+                  value={promoCodeInput}
+                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                  className="h-8 text-xs font-mono uppercase bg-surface/60"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!promoCodeInput.trim() || isActivatingCode}
+                  onClick={handleActivateManualCode}
+                  className="h-8 px-3 text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shrink-0"
+                >
+                  {isActivatingCode ? "..." : "Faollashtirish"}
+                </Button>
               </div>
             </div>
 
@@ -240,7 +286,7 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
                 <span>100% Xavfsiz to'lov & Kafolat</span>
               </div>
-              <span>Tezkor 5 daqiqada faollashtirish</span>
+              <span className="text-emerald-400 font-semibold">1-klikda faollashtirish</span>
             </div>
 
             {/* Action Buttons */}
@@ -277,24 +323,13 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
                 To'lovni Tasdiqlash So'rovi
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                To'lovingizni tekshirib tarifingizni yoqishimiz uchun kontakt ma'lumotingizni kiriting.
-                Xabar to'g'ridan-to'g'ri administrator Telegram botiga yetkaziladi.
+                Administrator Telegram botiga xabar boradi va u 1 ta tugma bosish bilan hisobingizga dostup beradi.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs flex justify-between items-center">
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Tarif & Summa:</span>
-                <span className="font-bold text-foreground">{plan.name}</span>
-              </div>
-              <span className="text-sm font-extrabold text-cyan-400 font-mono">
-                {plan.priceUzSum.toLocaleString()} so'm
-              </span>
-            </div>
-
             <div>
-              <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                Telefon raqamingiz yoki Telegram usernameingiz: <span className="text-red-400">*</span>
+              <label className="text-[11px] font-semibold text-foreground block mb-1">
+                Telegram usernameingiz yoki Telefon raqamingiz: <span className="text-cyan-400">*</span>
               </label>
               <Input
                 required
@@ -318,10 +353,10 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
               />
             </div>
 
-            <div className="rounded-lg bg-secondary/30 p-2.5 text-[11px] text-muted-foreground flex items-start gap-2">
+            <div className="rounded-lg bg-secondary/30 p-2.5 text-[11px] text-muted-foreground flex items-start gap-2 border border-cyan-500/20">
               <AlertCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
               <span>
-                Ushbu ma'lumotlar administratorning Telegram botiga boradi va to'lov tasdiqlangach hisobingizga Pro/Agency ulanadi.
+                Ushbu so'rov avtomatik ravishda administratorning <strong>@nexreel_ai_bot</strong> botiga yetkaziladi. Administrator Telegram ichidagi bitta tugmani bosish orqali tarifingizni yoqadi.
               </span>
             </div>
 
@@ -365,9 +400,38 @@ export function PaymentModal({ open, onOpenChange, selectedPlan }: PaymentModalP
             <div>
               <h3 className="text-xl font-bold text-foreground">So'rovingiz qabul qilindi!</h3>
               <p className="mt-2 text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
-                To'lov so'rovingiz administrator Telegram botiga yetkazildi. Administrator to'lovingizni tekshirib, 5 daqiqa ichida tarifingizni faollashtiradi.
+                So'rovingiz administrator Telegram botiga yetkazildi. Administrator botdagi <strong>"1-bosishda dostup berish"</strong> tugmasini bosishi bilanoq obunangiz avtomatik faollashadi.
               </p>
             </div>
+
+            {/* Generated Activation Code */}
+            {generatedCode && (
+              <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs space-y-1.5 text-center">
+                <span className="text-[11px] text-muted-foreground block">
+                  Sizning shaxsiy aktivatsiya kodingiz:
+                </span>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="font-mono font-black text-sm text-cyan-300 tracking-wider">
+                    {generatedCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(generatedCode, "code")}
+                    className="p-1 rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition-colors"
+                    title="Nusxa olish"
+                  >
+                    {copiedType === "code" ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Ushbu kod orqali istalgan qurilmadan obunani bir soniyada faollashtirishingiz mumkin.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-xl border border-border/80 bg-secondary/30 p-3 text-xs space-y-1 text-left font-mono">
               <div className="flex justify-between">

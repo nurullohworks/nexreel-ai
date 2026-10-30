@@ -10,6 +10,7 @@ import {
   Download,
   Flame,
   Globe2,
+  Loader2,
   Scan,
   Share2,
   ShieldAlert,
@@ -58,6 +59,27 @@ function ReportPage() {
   const analysis = analyses.find((a) => a.id === id);
   const [actual, setActual] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!analysis) return;
+    setIsExportingPdf(true);
+    toast.info("PDF hisobot tayyorlanmoqda va saqlanmoqda...", {
+      description: "Bir necha soniyada fayl to'g'ridan-to'g'ri yuklab olinadi.",
+    });
+
+    try {
+      await reportService.export(analysis);
+      toast.success("PDF hisoboti muvaffaqiyatli saqlandi!", {
+        description: "Fayl kompyuteringizning 'Yuklamalar' papkasiga tushdi.",
+      });
+    } catch (err: any) {
+      console.error("PDF export error:", err);
+      toast.error("PDF saqlashda xatolik yuz berdi");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   if (!analysis) {
     return (
@@ -96,8 +118,23 @@ function ReportPage() {
             {analysis.fileName} · {new Date(analysis.createdAt).toLocaleString()} · Davomiyligi: {analysis.durationSec}s
           </p>
         </div>
-        <Button variant="outline" onClick={() => void reportService.export(analysis)}>
-          <Download className="mr-1 h-4 w-4" /> PDF eksport
+        <Button
+          variant="outline"
+          disabled={isExportingPdf}
+          onClick={handleDownloadPdf}
+          className="border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold cursor-pointer"
+        >
+          {isExportingPdf ? (
+            <>
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-cyan-400" />
+              PDF Saqlanmoqda...
+            </>
+          ) : (
+            <>
+              <Download className="mr-1.5 h-4 w-4" />
+              PDF Yuklab Olish (.pdf)
+            </>
+          )}
         </Button>
       </div>
 

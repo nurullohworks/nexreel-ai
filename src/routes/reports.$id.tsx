@@ -55,7 +55,7 @@ const severityStyles: Record<Severity, string> = {
 
 function ReportPage() {
   const { id } = useParams({ from: "/reports/$id" });
-  const { analyses, setActualViews } = useAppStore();
+  const { analyses, setActualViews, platformSettings } = useAppStore();
   const analysis = analyses.find((a) => a.id === id);
   const [actual, setActual] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -118,24 +118,26 @@ function ReportPage() {
             {analysis.fileName} · {new Date(analysis.createdAt).toLocaleString()} · Davomiyligi: {analysis.durationSec}s
           </p>
         </div>
-        <Button
-          variant="outline"
-          disabled={isExportingPdf}
-          onClick={handleDownloadPdf}
-          className="border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold cursor-pointer"
-        >
-          {isExportingPdf ? (
-            <>
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-cyan-400" />
-              PDF Saqlanmoqda...
-            </>
-          ) : (
-            <>
-              <Download className="mr-1.5 h-4 w-4" />
-              PDF Yuklab Olish (.pdf)
-            </>
-          )}
-        </Button>
+        {platformSettings?.enablePdfAuditExport !== false ? (
+          <Button
+            variant="outline"
+            disabled={isExportingPdf}
+            onClick={handleDownloadPdf}
+            className="border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold cursor-pointer"
+          >
+            {isExportingPdf ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-cyan-400" />
+                PDF Saqlanmoqda...
+              </>
+            ) : (
+              <>
+                <Download className="mr-1.5 h-4 w-4" />
+                PDF Yuklab Olish (.pdf)
+              </>
+            )}
+          </Button>
+        ) : null}
       </div>
 
       {/* 🚀 Algorithmic Verdict Hero Banner */}
@@ -605,7 +607,9 @@ function ReportPage() {
       </section>
 
       {/* 🎬 AI Ssenariy & Viral Hook Generator */}
-      <AiScriptGeneratorCard analysis={analysis} />
+      {platformSettings?.enableAiScriptGen !== false && (
+        <AiScriptGeneratorCard analysis={analysis} />
+      )}
 
       {/* Benchmark Graph */}
       <section className="surface-card mt-6 p-6 border border-border/80">

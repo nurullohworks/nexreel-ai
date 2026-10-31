@@ -29,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     subscription,
+    creditsRemaining,
     hydrated,
     daysUntilExpiry,
     isExpiringSoon,
@@ -209,12 +210,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LanguageSwitcher />
 
             <Link
-              to="/pricing"
+              to="/billing"
               className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-mono font-bold text-cyan-300 transition-all hover:bg-cyan-500/20"
+              title="AI Kreditlar balansi va tarif boshqaruvi"
             >
               <Zap className="h-3 w-3 text-cyan-400" />
               <span className="uppercase">{subscription.plan}</span>
-              <span className="opacity-70">({subscription.usedThisMonth}/{subscription.monthlyLimit})</span>
+              <span className="text-white font-black bg-cyan-500/30 px-1.5 py-0.5 rounded-md text-[10px]">
+                {(creditsRemaining ?? 4000).toLocaleString()} KREDIT
+              </span>
             </Link>
 
             {/* Admin Console Link (Only for Admin) */}

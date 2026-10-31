@@ -61,6 +61,42 @@ export interface UserAccessGrant {
   isActive: boolean;
 }
 
+export interface PlatformSettings {
+  enableInstagramLink: boolean;
+  enableAiScriptGen: boolean;
+  enablePdfAuditExport: boolean;
+  autoApprovePayments: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  freePlanAnalysisLimit: number;
+  defaultGrantDays: number;
+  aiModel: string;
+  aiStrictness: "balanced" | "strict" | "creative";
+  supportTelegram: string;
+  supportPhone: string;
+  globalBannerText: string;
+  showGlobalBanner: boolean;
+}
+
+export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
+  enableInstagramLink: true,
+  enableAiScriptGen: true,
+  enablePdfAuditExport: true,
+  autoApprovePayments: true,
+  maintenanceMode: false,
+  maintenanceMessage:
+    "NEXREEL AI platformasida rejaviy texnik yangilanishlar olib borilmoqda. Tizim tez orada to'liq rejimda ishga tushadi.",
+  freePlanAnalysisLimit: 2,
+  defaultGrantDays: 30,
+  aiModel: "gemini-2.5-flash",
+  aiStrictness: "balanced",
+  supportTelegram: "pray_boy",
+  supportPhone: "+998 93 760 77 27",
+  globalBannerText:
+    "⚡ NEXREEL AI: Instagram Reels havolasi orqali tahlil, 5x virusli Hook va 1-klikli A4 PDF Audit tayyor!",
+  showGlobalBanner: true,
+};
+
 export const PLAN_LIMITS: Record<PlanId, number> = { free: 2, pro: 100, agency: 500 };
 
 export const DEFAULT_PLAN_PRICING: Record<PlanId, PlanPricingConfig> = {
@@ -129,6 +165,14 @@ export interface AppStore extends AppState {
   isExpiringSoon: boolean;
   isExpired: boolean;
 
+  // Platform Feature Settings
+  platformSettings: PlatformSettings;
+  updatePlatformSettings: (settings: Partial<PlatformSettings>) => void;
+  resetPlatformSettings: () => void;
+  updateUserGrantPlan: (id: string, newPlan: PlanId) => void;
+  extendUserGrant: (id: string, additionalDays: number) => void;
+  toggleUserGrantStatus: (id: string) => void;
+
   // Telegram Bot & Payment Requests
   paymentRequests: PaymentRequestPayload[];
   telegramBotConfig: TelegramBotConfig;
@@ -179,6 +223,7 @@ const AppContext = createContext<AppStore | null>(null);
 
 interface AdminData {
   pricingConfig: Record<PlanId, PlanPricingConfig>;
+  platformSettings: PlatformSettings;
   announcements: AdminAnnouncement[];
   userGrants: UserAccessGrant[];
   adminPin: string;
@@ -188,6 +233,7 @@ interface AdminData {
 
 const defaultAdminData: AdminData = {
   pricingConfig: DEFAULT_PLAN_PRICING,
+  platformSettings: DEFAULT_PLATFORM_SETTINGS,
   announcements: DEFAULT_ANNOUNCEMENTS,
   userGrants: DEFAULT_USER_GRANTS,
   adminPin: "7727",
@@ -214,6 +260,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             ...prev,
             ...parsedAdmin,
             pricingConfig: { ...DEFAULT_PLAN_PRICING, ...(parsedAdmin.pricingConfig || {}) },
+            platformSettings: { ...DEFAULT_PLATFORM_SETTINGS, ...(parsedAdmin.platformSettings || {}) },
           }));
         } catch {
           /* ignore */
@@ -416,6 +463,85 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             ...newConfig,
           },
         },
+      };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const updatePlatformSettings = useCallback((settings: Partial<PlatformSettings>) => {
+    setAdminData((prev) => {
+      const updated = {
+        ...prev,
+        platformSettings: { ...prev.platformSettings, ...settings },
+      };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (settings.supportTelegram || settings.supportPhone) {
+      PaymentService.saveSupportContact({
+        username: settings.supportTelegram,
+        phone: settings.supportPhone,
+        displayPhone: settings.supportPhone,
+      });
+    }
+  }, []);
+
+  const resetPlatformSettings = useCallback(() => {
+    setAdminData((prev) => {
+      const updated = {
+        ...prev,
+        platformSettings: DEFAULT_PLATFORM_SETTINGS,
+      };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const updateUserGrantPlan = useCallback((id: string, newPlan: PlanId) => {
+    setAdminData((prev) => {
+      const updated = {
+        ...prev,
+        userGrants: prev.userGrants.map((g) => (g.id === id ? { ...g, plan: newPlan } : g)),
+      };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const extendUserGrant = useCallback((id: string, additionalDays: number) => {
+    setAdminData((prev) => {
+      const updated = {
+        ...prev,
+        userGrants: prev.userGrants.map((g) => {
+          if (g.id !== id) return g;
+          const currentExp = new Date(g.expiresAt).getTime();
+          const baseTime = currentExp > Date.now() ? currentExp : Date.now();
+          const newExp = new Date(baseTime + additionalDays * 86400000).toISOString();
+          return { ...g, expiresAt: newExp, isActive: true };
+        }),
+      };
+      try {
+        window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const toggleUserGrantStatus = useCallback((id: string) => {
+    setAdminData((prev) => {
+      const updated = {
+        ...prev,
+        userGrants: prev.userGrants.map((g) => (g.id === id ? { ...g, isActive: !g.isActive } : g)),
       };
       try {
         window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
@@ -841,10 +967,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
       // Admin & Expiry
       pricingConfig: adminData.pricingConfig,
+      platformSettings: adminData.platformSettings,
       announcements: adminData.announcements,
       userGrants: adminData.userGrants,
       adminPin: adminData.adminPin,
       updatePricing,
+      updatePlatformSettings,
+      resetPlatformSettings,
+      updateUserGrantPlan,
+      extendUserGrant,
+      toggleUserGrantStatus,
       addAnnouncement,
       toggleAnnouncement,
       deleteAnnouncement,
@@ -880,6 +1012,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       disconnectInstagram,
       adminData,
       updatePricing,
+      updatePlatformSettings,
+      resetPlatformSettings,
+      updateUserGrantPlan,
+      extendUserGrant,
+      toggleUserGrantStatus,
       addAnnouncement,
       toggleAnnouncement,
       deleteAnnouncement,

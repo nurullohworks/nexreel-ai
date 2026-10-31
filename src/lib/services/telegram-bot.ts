@@ -184,6 +184,90 @@ ${codeUrl}
   }
 
   /**
+   * Sends an instant notification when a payment is automatically completed via Click or Payme
+   */
+  static async sendAutoPaymentNotification(
+    params: {
+      transactionId: string;
+      provider: "click" | "payme" | "card" | string;
+      planId: PlanId;
+      planName: string;
+      priceUzSum: number;
+      priceUsd: number;
+      userContact: string;
+      analysisLimit: number;
+    },
+    overrideConfig?: TelegramBotConfig
+  ): Promise<{ success: boolean; error?: string }> {
+    const config = overrideConfig || this.getConfig();
+    if (!config.botToken || !config.chatId) {
+      return { success: false, error: "Telegram Bot sozlanmagan" };
+    }
+
+    const providerNames: Record<string, string> = {
+      click: "🔵 CLICK (Avtomatik to'lov)",
+      payme: "🟢 PAYME (Avtomatik to'lov)",
+      card: "💳 KARTA / UZCARD-HUMO (Avto-to'lov)",
+    };
+
+    const dateStr = new Date().toLocaleString("uz-UZ", {
+      timeZone: "Asia/Tashkent",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const isTgHandle =
+      params.userContact.startsWith("@") ||
+      (!params.userContact.includes("@") && params.userContact.length > 3 && !params.userContact.startsWith("+"));
+    const cleanTgHandle = params.userContact.replace("@", "").trim();
+
+    const message = `⚡ <b>YANGI AVTOMATIK TO'LOV MUVAFFAQIYATLI O'TDI!</b>
+━━━━━━━━━━━━━━━━━━━━
+💳 <b>To'lov Tizimi:</b> <b>${providerNames[params.provider] || params.provider.toUpperCase()}</b>
+👤 <b>Mijoz:</b> <code>${params.userContact}</code>
+🏷️ <b>Tarif:</b> <b>${params.planName}</b>
+💰 <b>Summa:</b> <b>${params.priceUzSum.toLocaleString()} so'm</b> ($${params.priceUsd})
+⚡ <b>AI Tahlil Limiti:</b> ${params.analysisLimit} ta video
+🆔 <b>Tranzaksiya ID:</b> <code>${params.transactionId}</code>
+🕒 <b>Vaqti:</b> ${dateStr}
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>STATUS: DOSTUP AVTOMATIK TARZDA YOQILDI!</b>
+<i>Mijoz tizimdan darhol foydalanishni boshladi. Qo'lda tasdiqlash talab etilmaydi.</i>`;
+
+    const inlineKeyboard: any[][] = [];
+    if (isTgHandle) {
+      inlineKeyboard.push([
+        {
+          text: `💬 Mijozga Telegramdan yozish (@${cleanTgHandle})`,
+          url: `https://t.me/${cleanTgHandle}`,
+        },
+      ]);
+    }
+
+    try {
+      const url = `https://api.telegram.org/bot${config.botToken.trim()}/sendMessage`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: config.chatId.trim(),
+          text: message,
+          parse_mode: "HTML",
+          reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+        }),
+      });
+
+      const data = await response.json();
+      return { success: data.ok };
+    } catch (err: any) {
+      return { success: false, error: err.message || "Internet ulanishida xatolik" };
+    }
+  }
+
+  /**
    * Sends a test message to verify the bot token and chat ID
    */
   static async sendTestMessage(config: TelegramBotConfig): Promise<{ success: boolean; error?: string }> {

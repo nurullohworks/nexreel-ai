@@ -38,16 +38,44 @@ function Pricing() {
   const [promoInput, setPromoInput] = useState("");
   const [isActivating, setIsActivating] = useState(false);
 
-  const { user, setPlan, pricingConfig, activateCode, activateGrantToken } = useAppStore();
+  const { user, setPlan, pricingConfig, activateCode, activateGrantToken, recordAutoPayment } = useAppStore();
   const { t } = useI18n();
   const navigate = useNavigate();
 
-  // Telegram bot orqali 1-bosishda yuborilgan dostup havolasini avtomatik faollashtirish
+  // Click / Payme avtomatik to'lov va Telegram 1-bosishda dostup havolalarini qayta ishlash
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment");
+    const provider = (params.get("provider") || "click").toLowerCase();
+    const planParam = ((params.get("plan") as any) || "pro");
+    const txId = params.get("tx") || `TX-${provider.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
     const grantToken = params.get("grant") || params.get("grant_token");
     const code = params.get("code") || params.get("activation_code");
+
+    if (paymentStatus === "success") {
+      void recordAutoPayment({
+        planId: planParam,
+        provider: provider as any,
+        userContact: user?.email || "avto_tolov_mijoz",
+        transactionId: txId,
+        days: 30,
+        note: `${provider.toUpperCase()} orqali avtomatik to'landi. Tranzaksiya: ${txId}`,
+      }).then(() => {
+        toast.success("To'lov muvaffaqiyatli qabul qilindi!", {
+          description: `${provider.toUpperCase()} orqali to'lov tasdiqlandi. ${
+            planParam === "agency" ? "Agency & SMM" : "Pro Yaratuvchi"
+          } tarifi avtomatik tarzda yoqildi!`,
+          duration: 7000,
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+        setTimeout(() => {
+          void navigate({ to: "/dashboard" });
+        }, 1200);
+      });
+      return;
+    }
 
     if (grantToken) {
       const res = activateGrantToken(grantToken);
@@ -74,7 +102,7 @@ function Pricing() {
         toast.error(res.message);
       }
     }
-  }, [activateCode, activateGrantToken]);
+  }, [activateCode, activateGrantToken, recordAutoPayment, user?.email, navigate]);
 
   const handleManualActivate = () => {
     if (!promoInput.trim()) {

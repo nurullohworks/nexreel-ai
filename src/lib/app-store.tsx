@@ -140,6 +140,14 @@ export interface AppStore extends AppState {
   updateTelegramBotConfig: (config: Partial<TelegramBotConfig>) => void;
   activateCode: (code: string) => { success: boolean; message: string; plan?: PlanId };
   activateGrantToken: (token: string) => { success: boolean; message: string; plan?: PlanId; userContact?: string };
+  recordAutoPayment: (params: {
+    planId: PlanId;
+    provider: "click" | "payme" | "card" | string;
+    userContact: string;
+    transactionId?: string;
+    days?: number;
+    note?: string;
+  }) => Promise<{ success: boolean; transactionId: string }>;
 }
 
 export const DEFAULT_USER: AppUser = {
@@ -741,6 +749,81 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [setPlan, grantUserAccess, approvePaymentRequest],
   );
 
+  const recordAutoPayment = useCallback(
+    async (params: {
+      planId: PlanId;
+      provider: "click" | "payme" | "card" | string;
+      userContact: string;
+      transactionId?: string;
+      days?: number;
+      note?: string;
+    }) => {
+      const days = params.days || 30;
+      const txId =
+        params.transactionId ||
+        `TX-${params.provider.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+      const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+      const planCfg = adminData.pricingConfig[params.planId] || DEFAULT_PLAN_PRICING[params.planId];
+
+      // 1. Foydalanuvchi obunasini darhol faollashtiramiz
+      setPlan(params.planId, days > 90 ? "yearly" : "monthly", expiresAt);
+
+      // 2. Foydalanuvchi dostup ruxsatnomasini tizimga yozamiz
+      const contact = params.userContact || state.user?.email || "avto_tolov_foydalanuvchi";
+      grantUserAccess(
+        contact,
+        params.planId,
+        days,
+        `${params.provider.toUpperCase()} orqali avtomatik to'lov (${txId})`
+      );
+
+      // 3. Admin panelda ko'rinishi uchun approved to'lov yozuvi yaratamiz
+      const approvedReq: PaymentRequestPayload = {
+        id: `req_${Date.now()}`,
+        userContact: contact,
+        planId: params.planId,
+        planName: planCfg?.name || params.planId.toUpperCase(),
+        priceUzSum: planCfg?.priceUzSum || (params.planId === "agency" ? 490000 : 190000),
+        priceUsd: planCfg?.priceUsd || (params.planId === "agency" ? 39 : 15),
+        analysisLimit: planCfg?.analysisLimit || (params.planId === "agency" ? 500 : 100),
+        note:
+          params.note ||
+          `${params.provider.toUpperCase()} orqali avtomatik to'landi. Tranzaksiya: ${txId}`,
+        createdAt: new Date().toISOString(),
+        status: "approved",
+      };
+
+      setAdminData((prev) => {
+        const updated = {
+          ...prev,
+          paymentRequests: [approvedReq, ...prev.paymentRequests],
+        };
+        try {
+          window.localStorage.setItem(ADMIN_KEY, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+
+      // 4. Administrator Telegram Botiga avtomatik tasdiqlangan bildirishnoma yuborish
+      void TelegramBotService.sendAutoPaymentNotification(
+        {
+          transactionId: txId,
+          provider: params.provider as any,
+          planId: params.planId,
+          planName: approvedReq.planName,
+          priceUzSum: approvedReq.priceUzSum,
+          priceUsd: approvedReq.priceUsd,
+          userContact: contact,
+          analysisLimit: approvedReq.analysisLimit,
+        },
+        adminData.telegramBotConfig
+      );
+
+      return { success: true, transactionId: txId };
+    },
+    [adminData.pricingConfig, adminData.telegramBotConfig, setPlan, grantUserAccess, state.user?.email]
+  );
+
   const value = useMemo<AppStore>(
     () => ({
       ...state,
@@ -781,6 +864,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       updateTelegramBotConfig,
       activateCode,
       activateGrantToken,
+      recordAutoPayment,
     }),
     [
       state,
@@ -811,6 +895,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       updateTelegramBotConfig,
       activateCode,
       activateGrantToken,
+      recordAutoPayment,
     ],
   );
 

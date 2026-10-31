@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber, useAppStore } from "@/lib/app-store";
 import { ANALYSIS_STEPS, LIVEDUNE_NICHES, videoAnalysisService } from "@/lib/services";
+import { CreditEconomyService } from "@/lib/services/credit-economy";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
@@ -49,7 +50,8 @@ function extractReelShortcode(url: string): string | null {
 }
 
 function Analyze() {
-  const { canAnalyze, addAnalysis, instagramAccount, platformSettings } = useAppStore();
+  const { canAnalyze, addAnalysis, instagramAccount, platformSettings, creditsRemaining } = useAppStore();
+  const modelConfig = CreditEconomyService.getModelCost(platformSettings?.aiModel);
   const { t } = useI18n();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,7 +147,10 @@ function Analyze() {
       return;
     }
 
-    if (!canAnalyze) {
+    if (!canAnalyze || ((creditsRemaining ?? 4000) < modelConfig.creditsCost)) {
+      toast.error("AI Kreditlar yetarli emas!", {
+        description: `Ushbu tahlil uchun ${modelConfig.creditsCost} kredit talab qilinadi. Sizning balansingizda ${creditsRemaining ?? 0} kredit qolgan.`,
+      });
       setUpgradeOpen(true);
       return;
     }
@@ -240,6 +245,32 @@ function Analyze() {
 
         {!running ? (
           <>
+            {/* Live AI Credit & Model Economy Bar */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-card via-card to-cyan-950/20 px-4 py-3 text-xs shadow-md">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
+                  <Flame className="h-3.5 w-3.5 text-cyan-400" />
+                </div>
+                <div>
+                  <span className="text-muted-foreground mr-1.5">Mavjud AI Kreditlar:</span>
+                  <span className="font-mono font-black text-cyan-300 text-sm">
+                    {(creditsRemaining ?? 4000).toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono ml-2">
+                    (Yetadi: ~{Math.floor((creditsRemaining ?? 4000) / modelConfig.creditsCost)} ta tahlil)
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-[11px]">Faol Dvigatel:</span>
+                <span className="rounded-lg bg-secondary/80 px-2.5 py-1 font-mono text-[11px] font-bold text-foreground border border-border flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  {modelConfig.name} • <span className="text-cyan-400">{modelConfig.creditsCost} kredit/tahlil</span>
+                </span>
+              </div>
+            </div>
+
             {/* Onboarding Guide & Fast Demo Card for New Users */}
             <div className="mt-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-card to-card p-4 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -429,7 +460,7 @@ function Analyze() {
                   onClick={() => void run()}
                 >
                   <Flame className="mr-2 h-5 w-5" />
-                  {t("analyze_btn_run", "Virallikni Tahlil Qilish (Meta 5 Drayveri)")}
+                  {t("analyze_btn_run", "Virallikni Tahlil Qilish")} ({modelConfig.creditsCost} AI Kredit)
                 </Button>
               </>
             )}
@@ -541,7 +572,7 @@ function Analyze() {
                   onClick={() => void run()}
                 >
                   <Flame className="mr-2 h-5 w-5" />
-                  Instagram Reel Havolasini Tahlil Qilish
+                  Instagram Reel Havolasini Tahlil Qilish ({modelConfig.creditsCost} AI Kredit)
                 </Button>
               </div>
             )}

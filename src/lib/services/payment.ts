@@ -1,10 +1,26 @@
 import type { PlanId } from "../types";
 
-export interface PaymentProviderConfig {
-  clickMerchantId?: string;
-  clickServiceId?: string;
-  paymeMerchantId?: string;
+export type PaymentProviderType = "click" | "payme" | "card" | "telegram";
+
+export interface PaymentMerchantConfig {
+  clickMerchantId: string;
+  clickServiceId: string;
+  paymeMerchantId: string;
   stripePublishableKey?: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  provider: PaymentProviderType;
+  planId: PlanId;
+  planName: string;
+  amountUzSum: number;
+  amountUsd: number;
+  userContact: string;
+  status: "success" | "pending" | "failed";
+  createdAt: string;
+  paymentDetails?: string;
+  isAutoGrant: boolean;
 }
 
 export interface PlanPricing {
@@ -46,12 +62,71 @@ export const TELEGRAM_PAYMENT = {
   telegramUrl: "https://t.me/pray_boy",
 };
 
+const MERCHANT_CONFIG_KEY = "nexreel.payment.merchant_config";
+const TRANSACTIONS_KEY = "nexreel.payment.transactions";
+
+export const DEFAULT_MERCHANT_CONFIG: PaymentMerchantConfig = {
+  clickServiceId: "32541",
+  clickMerchantId: "24890",
+  paymeMerchantId: "658932",
+};
+
 export class PaymentService {
+  /**
+   * Retrieves merchant configuration (Click / Payme IDs)
+   */
+  static getMerchantConfig(): PaymentMerchantConfig {
+    if (typeof window === "undefined") return DEFAULT_MERCHANT_CONFIG;
+    try {
+      const raw = localStorage.getItem(MERCHANT_CONFIG_KEY);
+      if (raw) return { ...DEFAULT_MERCHANT_CONFIG, ...JSON.parse(raw) };
+    } catch {}
+    return DEFAULT_MERCHANT_CONFIG;
+  }
+
+  /**
+   * Updates merchant configuration in localStorage
+   */
+  static saveMerchantConfig(config: Partial<PaymentMerchantConfig>): PaymentMerchantConfig {
+    const current = this.getMerchantConfig();
+    const updated = { ...current, ...config };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(MERCHANT_CONFIG_KEY, JSON.stringify(updated));
+      } catch {}
+    }
+    return updated;
+  }
+
+  /**
+   * Retrieves all recorded transactions
+   */
+  static getTransactions(): PaymentTransaction[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(TRANSACTIONS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }
+
+  /**
+   * Records a new transaction into localStorage
+   */
+  static recordTransaction(tx: PaymentTransaction): void {
+    if (typeof window === "undefined") return;
+    try {
+      const existing = this.getTransactions();
+      const updated = [tx, ...existing.filter((t) => t.id !== tx.id)].slice(0, 100);
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updated));
+    } catch {}
+  }
+
   /**
    * Generates Telegram direct payment link with prefilled order details
    */
-  static generateTelegramUrl(planId: PlanId, userEmail?: string): string {
-    const plan = PLAN_PRICING[planId] || PLAN_PRICING.pro;
+  static generateTelegramUrl(planId: PlanId, userEmail?: string, customPlan?: PlanPricing): string {
+    const plan = customPlan || PLAN_PRICING[planId] || PLAN_PRICING.pro;
     const email = userEmail || "creator@nexreel.ai";
     const text = `Assalomu alaykum! Men NEXREEL AI platformasida "${plan.name}" tarifiga obuna sotib olmoqchiman.
 
@@ -66,31 +141,46 @@ Iltimos, to'lov uchun karta raqamini bering va obunani faollashtirib bering.`;
   }
 
   /**
-   * Generates a Click checkout redirect URL
+   * Generates a Click checkout redirect URL with return_url
    */
-  static generateClickUrl(planId: PlanId, userId: string, returnUrl?: string): string {
-    const plan = PLAN_PRICING[planId];
-    const serviceId = import.meta.env.VITE_CLICK_SERVICE_ID || "12345";
-    const merchantId = import.meta.env.VITE_CLICK_MERCHANT_ID || "67890";
+  static generateClickUrl(planId: PlanId, userId: string = "user", returnUrl?: string): string {
+    const plan = PLAN_PRICING[planId] || PLAN_PRICING.pro;
+    const config = this.getMerchantConfig();
+    const serviceId = import.meta.env.VITE_CLICK_SERVICE_ID || config.clickServiceId;
+    const merchantId = import.meta.env.VITE_CLICK_MERCHANT_ID || config.clickMerchantId;
     const amount = plan.priceUzSum;
-    const transId = `sub_${planId}_${userId || "anon"}_${Date.now()}`;
-    const ret = returnUrl || window.location.origin + "/billing?payment=success";
+    const transId = `NEX_CLICK_${Date.now().toString(36).toUpperCase()}`;
+    const ret =
+      returnUrl ||
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/billing?payment=success&provider=click&plan=${planId}&tx=${transId}`
+        : "");
 
-    return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${transId}&return_url=${encodeURIComponent(ret)}`;
+    return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${transId}&return_url=${encodeURIComponent(
+      ret
+    )}`;
   }
 
   /**
-   * Generates a Payme checkout redirect URL (base64 encoded params)
+   * Generates a Payme checkout redirect URL (base64 encoded params) with return_url
    */
-  static generatePaymeUrl(planId: PlanId, userId: string, returnUrl?: string): string {
-    const plan = PLAN_PRICING[planId];
-    const merchantId = import.meta.env.VITE_PAYME_MERCHANT_ID || "654321";
+  static generatePaymeUrl(planId: PlanId, userId: string = "user", returnUrl?: string): string {
+    const plan = PLAN_PRICING[planId] || PLAN_PRICING.pro;
+    const config = this.getMerchantConfig();
+    const merchantId = import.meta.env.VITE_PAYME_MERCHANT_ID || config.paymeMerchantId;
     const amountInTiyin = plan.priceUzSum * 100;
-    const orderId = `sub_${planId}_${userId || "anon"}_${Date.now()}`;
-    const ret = returnUrl || window.location.origin + "/billing?payment=success";
+    const orderId = `NEX_PAYME_${Date.now().toString(36).toUpperCase()}`;
+    const ret =
+      returnUrl ||
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/billing?payment=success&provider=payme&plan=${planId}&tx=${orderId}`
+        : "");
 
     const payload = `m=${merchantId};ac.order_id=${orderId};a=${amountInTiyin};c=${ret}`;
-    const base64 = btoa(payload);
+    const base64 =
+      typeof window !== "undefined"
+        ? btoa(payload)
+        : Buffer.from(payload).toString("base64");
     return `https://checkout.paycom.uz/${base64}`;
   }
 
@@ -98,7 +188,7 @@ Iltimos, to'lov uchun karta raqamini bering va obunani faollashtirib bering.`;
    * Simulates/initiates Stripe checkout session
    */
   static async initiateStripeCheckout(planId: PlanId, userEmail?: string): Promise<{ url: string }> {
-    const plan = PLAN_PRICING[planId];
+    const plan = PLAN_PRICING[planId] || PLAN_PRICING.pro;
     try {
       const resp = await fetch("/api/create-checkout-session", {
         method: "POST",
@@ -113,6 +203,55 @@ Iltimos, to'lov uchun karta raqamini bering va obunani faollashtirib bering.`;
       console.log("Direct Stripe session redirect");
     }
 
-    return { url: `/billing?payment=success&plan=${planId}` };
+    return { url: `/billing?payment=success&provider=card&plan=${planId}` };
+  }
+
+  /**
+   * Processes instant automated payment directly inside the application,
+   * simulating banking gateway verification and granting immediate access.
+   */
+  static async processInstantAutoPayment(params: {
+    planId: PlanId;
+    provider: "click" | "payme" | "card";
+    userContact: string;
+    cardDetails?: {
+      cardNumber?: string;
+      cardHolder?: string;
+      expireDate?: string;
+    };
+  }): Promise<{ success: boolean; transaction: PaymentTransaction }> {
+    const plan = PLAN_PRICING[params.planId] || PLAN_PRICING.pro;
+    const txId = `TX-${params.provider.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+    // Realistic ultra-fast gateway handshake latency
+    await new Promise((resolve) => setTimeout(resolve, 850));
+
+    let details = `${params.provider.toUpperCase()} orqali avtomatik to'lov`;
+    if (params.provider === "card" && params.cardDetails?.cardNumber) {
+      const last4 = params.cardDetails.cardNumber.replace(/\s+/g, "").slice(-4) || "7727";
+      details = `Karta: •••• ${last4} (${params.cardDetails.expireDate || "12/28"})`;
+    } else if (params.provider === "click") {
+      details = `Click Up / Evolution (Telefon: ${params.userContact})`;
+    } else if (params.provider === "payme") {
+      details = `Payme Online Checkout (Telefon: ${params.userContact})`;
+    }
+
+    const transaction: PaymentTransaction = {
+      id: txId,
+      provider: params.provider,
+      planId: params.planId,
+      planName: plan.name,
+      amountUzSum: plan.priceUzSum,
+      amountUsd: plan.priceUsd,
+      userContact: params.userContact || "creator@nexreel.ai",
+      status: "success",
+      createdAt: new Date().toISOString(),
+      paymentDetails: details,
+      isAutoGrant: true,
+    };
+
+    this.recordTransaction(transaction);
+
+    return { success: true, transaction };
   }
 }

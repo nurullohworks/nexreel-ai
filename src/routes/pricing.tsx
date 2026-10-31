@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Check, Send, Phone, ShieldCheck, KeyRound, Sparkles, Loader2 } from "lucide-react";
+import { Check, Send, Phone, ShieldCheck, KeyRound, Sparkles, Loader2, Zap, Cpu, Layers, Activity } from "lucide-react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import type { PlanId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PaymentModal } from "@/components/app/PaymentModal";
 import { TELEGRAM_PAYMENT } from "@/lib/services/payment";
+import { MODEL_CREDIT_COSTS, CREDIT_TOPUP_PACKAGES } from "@/lib/services/credit-economy";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 
@@ -137,11 +138,17 @@ function Pricing() {
   }[] = [
     {
       id: "free",
-      name: t("pricing_plan_free", "Bepul"),
+      name: t("pricing_plan_free", "Bepul Boshlang'ich"),
       monthlyUzSum: 0,
       monthlyUsd: 0,
       cta: t("pricing_cta_free", "Bepul Boshlash"),
-      features: ["Oyiga 2 ta tahlil", "Asosiy hisobot", "Asosiy hisob tahlili", "Cheklangan tarix"],
+      features: [
+        "50 AI Kredit / oyiga",
+        "Google Gemini 2.5 Flash tahlili (~5 ta)",
+        "Meta 3s Hook retention tahlili",
+        "LiveDune sohaviy benchmarklari",
+        "Standart timeline tavsiyalari",
+      ],
     },
     {
       id: "pro",
@@ -151,13 +158,14 @@ function Pricing() {
       cta: t("pricing_cta_pro", "Pro'ga O'tish"),
       popular: true,
       features: [
-        "100 ta video tahlili",
-        "Ilg'or Gemini / Claude AI tahlili",
-        "Meta 5 drayverli diagnostika",
-        "LiveDune sohaviy benchmarklari",
-        "Batafsil timeline tavsiyalari",
-        "Tahlil tarixi va solishtirish",
-        "Ustuvor qayta ishlash",
+        "1,200 AI Kredit / oyiga",
+        "120 ta Flash yoki 24-30 ta Claude/GPT-4o tahlil",
+        "Ilg'or Gemini 2.5 / Claude 3.7 / GPT-4o",
+        "Meta 5 drayverli to'liq diagnostika",
+        "LiveDune 15,000+ akkaunt me'yorlari",
+        "AI Ssenariy & 5x Viral Hook generatori",
+        "1-bosishli A4 PDF Audit Eksporti",
+        "Ustuvor tahlil navbati",
       ],
     },
     {
@@ -167,12 +175,13 @@ function Pricing() {
       monthlyUsd: 39,
       cta: t("pricing_cta_agency", "Agency'ni Boshlash"),
       features: [
-        "500 ta video tahlili",
-        "Bir nechta Instagram hisoblari",
-        "Jamoaviy kirish imkoniyati",
-        "Mijozlar uchun PDF hisobotlar",
+        "4,000 AI Kredit / oyiga",
+        "400 ta Flash yoki 80-160 ta Claude/GPT-4o tahlil",
+        "Jamoaviy balans (5 ta a'zo uchun)",
+        "Cheksiz Instagram akkauntlarini ulash",
+        "Mijozlar uchun to'liq PDF audit hisobotlar",
         "Oq nishonli (White-label) brending",
-        "VIP texnik yordam",
+        "VIP shaxsiy texnik ko'mak",
       ],
     },
   ];
@@ -275,7 +284,9 @@ function Pricing() {
 
                   <div className="flex items-baseline justify-between">
                     <h2 className="text-xl font-semibold">{planName}</h2>
-                    <span className="text-xs text-muted-foreground font-mono">{planLimit} ta tahlil/oy</span>
+                    <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+                      {(dyn?.creditsMonthly || (plan.id === "free" ? 50 : plan.id === "pro" ? 1200 : 4000)).toLocaleString()} AI Kredit
+                    </span>
                   </div>
 
                   <div className="mt-6 flex items-baseline gap-2">
@@ -314,7 +325,110 @@ function Pricing() {
             })}
           </div>
 
-          {/* Quick Activation Code Card */}
+          {/* AI MODEL TOKEN CONSUMPTION & CREDIT TRANSPARENCY CARD */}
+          <div className="mt-14 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-card via-surface to-cyan-950/20 p-6 sm:p-8 space-y-6 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/60 pb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider">
+                    Shaffof Iqtisodiy Model & Token Xarajatlari
+                  </span>
+                </div>
+                <h3 className="text-xl font-black text-foreground mt-1">
+                  Nega Video Soni Emas, Balki AI Kreditlar Tizimi?
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                  Har bir AI model (Gemini, Claude 3.7, GPT-4o) turlicha miqdorda token sarflaydi. Kredit tizimi orqali siz qat'iy cheklovlarga bog'lanmaysiz: xohlasangiz yuzlab tezkor tahlil qiling, xohlasangiz eng chuqur Claude diagnostikasini o'tkazing!
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-right shrink-0">
+                <span className="text-[10px] uppercase font-bold text-emerald-400 block font-mono">Kafolat</span>
+                <span className="text-xs font-bold text-emerald-200">100% Shaffof Hisob-kitob</span>
+              </div>
+            </div>
+
+            {/* Model Cost Grid */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Object.values(MODEL_CREDIT_COSTS).map((m) => (
+                <div key={m.id} className="p-4 rounded-xl border border-border/70 bg-card/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground font-mono">{m.provider}</span>
+                    <span className="text-xs font-black font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/30">
+                      {m.creditsCost} Kredit
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-foreground">{m.name}</h4>
+                  <p className="text-[11px] text-muted-foreground leading-snug">{m.description}</p>
+                  <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                    <span>{m.tokenEstimate}</span>
+                    <span className="text-emerald-400">{m.speed}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add-on Top-Up Packages */}
+            <div className="pt-4 border-t border-border/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-400" />
+                    Kreditlar Tugaganda: Qo'shimcha To'ldirish Paketlari (Top-Up)
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Tarifingizni o'zgartirmasdan, xohlagan paytda 1-bosishda kredit balansini to'ldiring:
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {CREDIT_TOPUP_PACKAGES.map((pkg) => (
+                  <div
+                    key={pkg.id}
+                    className={cn(
+                      "p-4 rounded-xl border bg-surface/80 flex flex-col justify-between gap-3",
+                      pkg.popular ? "border-cyan-500/50 shadow-md shadow-cyan-500/10" : "border-border/70"
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-black font-mono text-foreground">
+                          +{pkg.credits.toLocaleString()} Kredit
+                        </span>
+                        {pkg.popular && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-500/40">
+                            TOP
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-emerald-400 font-semibold block mt-0.5">
+                        {pkg.bonus}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                      <span className="text-sm font-bold text-foreground">
+                        {pkg.priceUzSum.toLocaleString()} so'm
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={pkg.popular ? "default" : "outline"}
+                        onClick={() => {
+                          setSelectedPlan("pro");
+                          setPaymentOpen(true);
+                        }}
+                        className="text-xs h-7 font-bold"
+                      >
+                        Sotib Olish
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className="mt-12 max-w-xl mx-auto p-6 rounded-2xl border border-cyan-500/30 bg-surface/60 backdrop-blur-md">
             <div className="flex items-center gap-2.5 mb-2">
               <div className="h-8 w-8 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">

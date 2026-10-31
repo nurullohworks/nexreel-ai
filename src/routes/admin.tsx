@@ -27,6 +27,20 @@ import {
   Clock,
   Send,
   Loader2,
+  Sliders,
+  Cpu,
+  Zap,
+  BarChart3,
+  Search,
+  Filter,
+  ArrowUpRight,
+  Activity,
+  CheckCheck,
+  CreditCard,
+  Layers,
+  Power,
+  Globe,
+  Settings,
 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -34,7 +48,9 @@ import { Input } from "@/components/ui/input";
 import {
   useAppStore,
   DEFAULT_PLAN_PRICING,
+  DEFAULT_PLATFORM_SETTINGS,
   type PlanPricingConfig,
+  type PlatformSettings,
 } from "@/lib/app-store";
 import type { PlanId } from "@/lib/types";
 import { TelegramBotService } from "@/lib/services/telegram-bot";
@@ -43,8 +59,8 @@ import { PaymentService } from "@/lib/services/payment";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Admin Panel — NEXREEL AI" },
-      { name: "description", content: "NEXREEL AI boshqaruv konsoli, narxlar va obunalar." },
+      { title: "Admin Markaziy Konsoli — NEXREEL AI" },
+      { name: "description", content: "NEXREEL AI to'liq boshqaruv konsoli, funksiyalar, narxlar va obunalar." },
     ],
   }),
   component: AdminPage,
@@ -54,6 +70,9 @@ function AdminPage() {
   const {
     pricingConfig,
     updatePricing,
+    platformSettings,
+    updatePlatformSettings,
+    resetPlatformSettings,
     announcements,
     addAnnouncement,
     toggleAnnouncement,
@@ -61,6 +80,9 @@ function AdminPage() {
     userGrants,
     grantUserAccess,
     revokeUserAccess,
+    updateUserGrantPlan,
+    extendUserGrant,
+    toggleUserGrantStatus,
     adminPin,
     setAdminPin,
     setPlan,
@@ -73,14 +95,19 @@ function AdminPage() {
   } = useAppStore();
 
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "features" | "users" | "pricing" | "payments" | "announcements" | "security"
+  >("overview");
 
+  // Device memory check
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         if (
           user?.email &&
           (user.email.toLowerCase().includes("farkhadivich") ||
-           user.email.toLowerCase() === "farkhadivichcreatorai@gmail.com")
+            user.email.toLowerCase() === "farkhadivichcreatorai@gmail.com")
         ) {
           localStorage.setItem("nexreel_admin_device", "true");
         }
@@ -88,30 +115,40 @@ function AdminPage() {
       } catch {}
     }
   }, [user]);
-  const [pinInput, setPinInput] = useState("");
-  const [activeTab, setActiveTab] = useState<
-    "pricing" | "users" | "announcements" | "telegram" | "security"
-  >("pricing");
+
+  // Platform Feature Settings State
+  const [featureConfig, setFeatureConfig] = useState<PlatformSettings>(() => ({
+    ...DEFAULT_PLATFORM_SETTINGS,
+    ...(platformSettings || {}),
+  }));
+
+  useEffect(() => {
+    if (platformSettings) {
+      setFeatureConfig((prev) => ({ ...prev, ...platformSettings }));
+    }
+  }, [platformSettings]);
+
+  // Support & Merchant Settings State
+  const [supportTelegramInput, setSupportTelegramInput] = useState(
+    () => platformSettings?.supportTelegram || PaymentService.getSupportContact().username
+  );
+  const [supportPhoneInput, setSupportPhoneInput] = useState(
+    () => platformSettings?.supportPhone || PaymentService.getSupportContact().phone
+  );
+  const [clickServiceId, setClickServiceId] = useState(
+    () => PaymentService.getMerchantConfig().clickServiceId
+  );
+  const [clickMerchantId, setClickMerchantId] = useState(
+    () => PaymentService.getMerchantConfig().clickMerchantId
+  );
+  const [paymeMerchantId, setPaymeMerchantId] = useState(
+    () => PaymentService.getMerchantConfig().paymeMerchantId
+  );
 
   // Bot Settings State
   const [botTokenInput, setBotTokenInput] = useState(telegramBotConfig?.botToken || "");
   const [chatIdInput, setChatIdInput] = useState(telegramBotConfig?.chatId || "");
   const [isTestingBot, setIsTestingBot] = useState(false);
-
-  // Click & Payme Merchant Settings
-  const [clickServiceId, setClickServiceId] = useState(() => PaymentService.getMerchantConfig().clickServiceId);
-  const [clickMerchantId, setClickMerchantId] = useState(() => PaymentService.getMerchantConfig().clickMerchantId);
-  const [paymeMerchantId, setPaymeMerchantId] = useState(() => PaymentService.getMerchantConfig().paymeMerchantId);
-
-  const handleSaveMerchantConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    PaymentService.saveMerchantConfig({
-      clickServiceId: clickServiceId.trim(),
-      clickMerchantId: clickMerchantId.trim(),
-      paymeMerchantId: paymeMerchantId.trim(),
-    });
-    toast.success("Click va Payme merchant sozlamalari muvaffaqiyatli saqlandi!");
-  };
 
   // Pricing Form State
   const [editablePricing, setEditablePricing] = useState<Record<PlanId, PlanPricingConfig>>(pricingConfig);
@@ -121,6 +158,8 @@ function AdminPage() {
   const [grantPlan, setGrantPlan] = useState<PlanId>("pro");
   const [grantDays, setGrantDays] = useState("30");
   const [grantNote, setGrantNote] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userFilter, setUserFilter] = useState<"all" | "active" | "expired" | "pro" | "agency" | "free">("all");
 
   // Announcement Form State
   const [annTitle, setAnnTitle] = useState("");
@@ -138,7 +177,7 @@ function AdminPage() {
         sessionStorage.setItem("nexreel_admin_unlocked", "true");
         localStorage.setItem("nexreel_admin_device", "true");
       } catch {}
-      toast.success("Admin panelga muvaffaqiyatli kirildi!");
+      toast.success("Admin markaziy boshqaruv paneliga muvaffaqiyatli kirdingiz!");
     } else {
       toast.error("Noto'g'ri PIN-kod! Iltimos, qaytadan urinib ko'ring.");
     }
@@ -152,6 +191,77 @@ function AdminPage() {
     toast.info("Admin paneldan chiqildi.");
   };
 
+  // 1. SAVE FEATURES & PLATFORM SETTINGS
+  const handleSaveFeatures = (e: React.FormEvent) => {
+    e.preventDefault();
+    updatePlatformSettings(featureConfig);
+    toast.success("Platforma sozlamalari va funksiyalari muvaffaqiyatli saqlandi!", {
+      description: "O'zgarishlar barcha foydalanuvchilar ekranida zudlik bilan kuchga kirdi.",
+    });
+  };
+
+  // 2. SAVE PAYMENT & SUPPORT SETTINGS
+  const handleSavePaymentAndSupport = (e: React.FormEvent) => {
+    e.preventDefault();
+    PaymentService.saveMerchantConfig({
+      clickServiceId: clickServiceId.trim(),
+      clickMerchantId: clickMerchantId.trim(),
+      paymeMerchantId: paymeMerchantId.trim(),
+    });
+
+    PaymentService.saveSupportContact({
+      username: supportTelegramInput.trim(),
+      phone: supportPhoneInput.trim(),
+      displayPhone: supportPhoneInput.trim(),
+    });
+
+    updatePlatformSettings({
+      supportTelegram: supportTelegramInput.trim(),
+      supportPhone: supportPhoneInput.trim(),
+    });
+
+    toast.success("To'lov shlyuzlari va aloqa kontaktlari muvaffaqiyatli saqlandi!", {
+      description: `Telegram: @${supportTelegramInput.replace("@", "")}, Tel: ${supportPhoneInput}`,
+    });
+  };
+
+  // 3. SAVE TELEGRAM BOT CONFIG
+  const handleSaveBotConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!botTokenInput.trim() || !chatIdInput.trim()) {
+      toast.error("Bot Token va Chat ID maydonlarini to'ldiring!");
+      return;
+    }
+    updateTelegramBotConfig({
+      botToken: botTokenInput.trim(),
+      chatId: chatIdInput.trim(),
+      enabled: true,
+    });
+    toast.success("Telegram Bot sozlamalari muvaffaqiyatli saqlandi!");
+  };
+
+  const handleTestBot = async () => {
+    if (!botTokenInput.trim() || !chatIdInput.trim()) {
+      toast.error("Avval Bot Token va Chat ID ni kiriting!");
+      return;
+    }
+    setIsTestingBot(true);
+    const res = await TelegramBotService.sendTestMessage({
+      botToken: botTokenInput.trim(),
+      chatId: chatIdInput.trim(),
+      enabled: true,
+    });
+    setIsTestingBot(false);
+    if (res.success) {
+      toast.success("Ajoyib! Telegram botingizga test xabari yetib bordi!", {
+        description: "Botingizni tekshirib ko'ring.",
+      });
+    } else {
+      toast.error(`Telegram xatoligi: ${res.error || "Token yoki Chat ID noto'g'ri"}`);
+    }
+  };
+
+  // 4. SAVE PRICING
   const handleSavePrice = (planId: PlanId) => {
     const config = editablePricing[planId];
     updatePricing(planId, config);
@@ -168,6 +278,7 @@ function AdminPage() {
     toast.info("Barcha narxlar standart holatiga qaytarildi.");
   };
 
+  // 5. USER GRANT ACTIONS
   const handleAddGrant = (e: React.FormEvent) => {
     e.preventDefault();
     if (!grantIdentifier.trim()) {
@@ -177,20 +288,21 @@ function AdminPage() {
     const days = parseInt(grantDays) || 30;
     grantUserAccess(grantIdentifier.trim(), grantPlan, days, grantNote.trim());
     toast.success(`Dostup berildi: ${grantIdentifier}`, {
-      description: `${grantPlan.toUpperCase()} tarifi ${days} kunga ulandi.`,
+      description: `${grantPlan.toUpperCase()} tarifi ${days} kunga faollashtirildi.`,
     });
     setGrantIdentifier("");
     setGrantNote("");
   };
 
   const handleGrantCurrentSession = (plan: PlanId, days: number = 30) => {
-    const email = user?.email || "creator@nexreel.ai";
-    grantUserAccess(email, plan, days, "Joriy brauzer sinovi");
-    toast.success(`Joriy hisobingizga ${plan.toUpperCase()} ulandi!`, {
+    const email = user?.email || "farkhadivichcreatorai@gmail.com";
+    grantUserAccess(email, plan, days, "Admin tezkor sinovi");
+    toast.success(`Joriy hisobingizga ${plan.toUpperCase()} tarifi ulandi!`, {
       description: `${days} kun davomida faol.`,
     });
   };
 
+  // 6. ANNOUNCEMENTS
   const handleAddAnnouncement = (e: React.FormEvent) => {
     e.preventDefault();
     if (!annTitle.trim() || !annContent.trim()) {
@@ -208,135 +320,139 @@ function AdminPage() {
     setAnnContent("");
   };
 
-  const handleChangePin = (e: React.FormEvent) => {
+  // 7. SECURITY & PIN
+  const handleUpdatePin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPin.trim().length < 4) {
-      toast.error("PIN kamida 4 ta belgidan iborat bo'lishi kerak!");
+    if (!newPin.trim() || newPin.trim().length < 4) {
+      toast.error("Yangi PIN-kod kamida 4 xonali bo'lishi kerak!");
       return;
     }
     setAdminPin(newPin.trim());
-    toast.success("Yangi PIN muvaffaqiyatli saqlandi!", {
-      description: "Eski PIN bekor qilindi. Endi faqat yangi PIN orqali kiriladi.",
-    });
+    toast.success("Admin PIN-kodi muvaffaqiyatli o'zgartirildi!");
     setNewPin("");
   };
 
-  const handleSaveBotConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateTelegramBotConfig({
-      botToken: botTokenInput.trim(),
-      chatId: chatIdInput.trim(),
-      enabled: true,
-    });
-    toast.success("Telegram Bot sozlamalari saqlandi!");
-  };
+  // Filtered Users List
+  const filteredUsers = userGrants.filter((grant) => {
+    const matchesQuery =
+      grant.identifier.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      (grant.note || "").toLowerCase().includes(userSearchQuery.toLowerCase());
+    if (!matchesQuery) return false;
 
-  const handleTestBot = async () => {
-    if (!botTokenInput.trim() || !chatIdInput.trim()) {
-      toast.error("Bot Token va Chat ID to'ldirilishi shart!");
-      return;
-    }
-    setIsTestingBot(true);
-    try {
-      const res = await TelegramBotService.sendTestMessage({
-        botToken: botTokenInput.trim(),
-        chatId: chatIdInput.trim(),
-        enabled: true,
-      });
-      if (res.success) {
-        toast.success("Test xabari Telegram botingizga yuborildi! Botingizni tekshirib ko'ring.");
-      } else {
-        toast.error(`Xatolik: ${res.error}`);
-      }
-    } finally {
-      setIsTestingBot(false);
-    }
-  };
+    const daysLeft = Math.ceil(
+      (new Date(grant.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    const isExpired = daysLeft < 0;
 
-  // 1. PIN Lock Screen
+    if (userFilter === "active") return grant.isActive && !isExpired;
+    if (userFilter === "expired") return isExpired || !grant.isActive;
+    if (userFilter === "pro") return grant.plan === "pro";
+    if (userFilter === "agency") return grant.plan === "agency";
+    if (userFilter === "free") return grant.plan === "free";
+    return true;
+  });
+
+  // Financial Stats Calculation
+  const totalApprovedSum = paymentRequests
+    .filter((r) => r.status === "approved")
+    .reduce((sum, r) => sum + (r.priceUzSum || 0), 0);
+  const totalApprovedUsd = paymentRequests
+    .filter((r) => r.status === "approved")
+    .reduce((sum, r) => sum + (r.priceUsd || 0), 0);
+
+  // LOCKED STATE VIEW
   if (!isUnlocked) {
     return (
       <AppShell>
-        <div className="flex min-h-[70vh] items-center justify-center px-4">
-          <div className="w-full max-w-md rounded-2xl border border-cyan-500/30 bg-card/90 p-8 shadow-2xl backdrop-blur-xl">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 shadow-lg shadow-cyan-500/20">
-              <Lock className="h-7 w-7" />
+        <div className="flex min-h-[70vh] items-center justify-center py-12 px-4">
+          <div className="surface-card w-full max-w-md p-8 border border-cyan-500/30 rounded-3xl shadow-2xl backdrop-blur-xl text-center space-y-6">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-lg shadow-cyan-500/20">
+              <Lock className="h-8 w-8" />
             </div>
 
-            <div className="mt-5 text-center">
-              <h1 className="text-2xl font-black text-foreground tracking-tight">
-                NEXREEL AI Admin Console
+            <div>
+              <span className="text-xs font-semibold text-cyan-400 uppercase tracking-widest">
+                Xavfsiz Boshqaruv
+              </span>
+              <h1 className="text-2xl font-black text-foreground mt-1 tracking-tight">
+                NEXREEL Markaziy Admin Paneli
               </h1>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Boshqaruv paneliga kirish uchun xavfsizlik PIN-kodini kiriting
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                Platforma funksiyalari, narxlari, foydalanuvchilar va to'lovlarni boshqarish uchun 4 xonali PIN-kodni kiriting.
               </p>
-              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-mono text-cyan-300">
-                <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Admin: {user?.email || "farkhadivichcreatorai@gmail.com"}</span>
-              </div>
             </div>
 
-            <form onSubmit={handleUnlock} className="mt-6 space-y-4">
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                  Maxfiy PIN-kod:
-                </label>
-                <Input
-                  type="password"
-                  maxLength={10}
-                  placeholder="••••••••"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  className="h-12 text-center font-mono text-xl tracking-widest bg-secondary/50 border-border/80 focus:border-cyan-500"
-                  autoFocus
-                />
-              </div>
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <Input
+                type="password"
+                maxLength={8}
+                placeholder="PIN-kodni kiriting (Standart: 7727)"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                className="text-center font-mono text-xl tracking-widest h-12 bg-surface/80"
+                autoFocus
+              />
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 font-bold text-white shadow-lg shadow-cyan-500/25"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-sm h-12 shadow-lg shadow-cyan-500/20 rounded-xl"
               >
                 <Unlock className="h-4 w-4 mr-2" />
                 Panelga Kirish
               </Button>
             </form>
+
+            <div className="rounded-xl border border-border/80 bg-surface/50 p-3 text-[11px] text-muted-foreground text-left flex items-start gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>
+                Farkhadivich (Asosiy Administrator) qurilmasi uchun xavfsizlik protokoli faollashtirilgan. Standart PIN: <strong>7727</strong>
+              </span>
+            </div>
           </div>
         </div>
       </AppShell>
     );
   }
 
-  // 2. Unlocked Admin Console
+  // UNLOCKED STATE - FULL FLAVORED COCKPIT
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
-              <ShieldCheck className="h-6 w-6" />
+      <div className="space-y-6 max-w-7xl mx-auto pb-16">
+        {/* Top Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-5">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Markaziy Boshqaruv Konsoli</span>
+              <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.2 text-[10px] font-mono">
+                ONLINE
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black text-foreground tracking-tight">Admin Console</h1>
-                <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase font-mono">
-                  Super Admin
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                To'lov narxlari, yangiliklar va foydalanuvchilar obunasini boshqarish
-              </p>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground mt-1 tracking-tight">
+              NEXREEL AI Admin Cockpit
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Platformaning barcha funksiyalarini, foydalanuvchilarini, narxlarini va to'lov tizimlarini to'liq boshqaring.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
-              onClick={handleLogout}
+              onClick={() => handleGrantCurrentSession("agency", 365)}
+              className="text-xs border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 font-bold"
             >
-              <LogOut className="h-3.5 w-3.5 mr-1.5" />
+              <Zap className="h-3.5 w-3.5 mr-1" />
+              1 Yillik VIP Dostup
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-xs text-muted-foreground hover:text-destructive"
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1" />
               Chiqish
             </Button>
           </div>
@@ -345,10 +461,46 @@ function AdminPage() {
         {/* Navigation Tabs */}
         <div className="flex flex-wrap gap-2 border-b border-border/60 pb-3">
           <button
+            onClick={() => setActiveTab("overview")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              activeTab === "overview"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
+                : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Umumiy Boshqaruv
+          </button>
+
+          <button
+            onClick={() => setActiveTab("features")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              activeTab === "features"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
+                : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Sliders className="h-4 w-4" />
+            Funksiyalar & AI Dvigatel
+          </button>
+
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              activeTab === "users"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
+                : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            Foydalanuvchilar & Dostuplar ({userGrants.length})
+          </button>
+
+          <button
             onClick={() => setActiveTab("pricing")}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
               activeTab === "pricing"
-                ? "bg-cyan-500 text-black shadow-md shadow-cyan-500/20"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
                 : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
@@ -357,39 +509,15 @@ function AdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab("users")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-              activeTab === "users"
-                ? "bg-cyan-500 text-black shadow-md shadow-cyan-500/20"
-                : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            Obuna Berish & Foydalanuvchilar ({userGrants.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("announcements")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-              activeTab === "announcements"
-                ? "bg-cyan-500 text-black shadow-md shadow-cyan-500/20"
-                : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Megaphone className="h-4 w-4" />
-            Yangiliklar & E'lonlar ({announcements.filter((a) => a.isActive).length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("telegram")}
+            onClick={() => setActiveTab("payments")}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all relative ${
-              activeTab === "telegram"
-                ? "bg-cyan-500 text-black shadow-md shadow-cyan-500/20"
+              activeTab === "payments"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
                 : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Bot className="h-4 w-4" />
-            <span>Telegram Bot & So'rovlar</span>
+            <CreditCard className="h-4 w-4" />
+            <span>To'lovlar & Shlyuzlar</span>
             {paymentRequests?.filter((r) => r.status === "pending").length > 0 && (
               <span className="rounded-full bg-red-500 text-white px-1.5 py-0.2 text-[10px] font-mono font-bold animate-pulse">
                 {paymentRequests.filter((r) => r.status === "pending").length}
@@ -398,10 +526,22 @@ function AdminPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab("announcements")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              activeTab === "announcements"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
+                : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Megaphone className="h-4 w-4" />
+            E'lonlar & Yangiliklar ({announcements.filter((a) => a.isActive).length})
+          </button>
+
+          <button
             onClick={() => setActiveTab("security")}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
               activeTab === "security"
-                ? "bg-cyan-500 text-black shadow-md shadow-cyan-500/20"
+                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-[1.02]"
                 : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
@@ -410,167 +550,576 @@ function AdminPage() {
           </button>
         </div>
 
-        {/* TAB 1: PRICING */}
-        {activeTab === "pricing" && (
+        {/* ========================================================================= */}
+        {/* TAB 1: OVERVIEW DASHBOARD */}
+        {/* ========================================================================= */}
+        {activeTab === "overview" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Tarif Narxlari va Limitlari</h2>
-                <p className="text-xs text-muted-foreground">
-                  Bu yerda o'zgartirilgan narxlar saytdagi barcha sahifalar va to'lov oynalarida darhol aks etadi.
-                </p>
+            {/* KPI Stat Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="surface-card p-5 rounded-2xl border-cyan-500/20 space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+                  <span>Jami Foydalanuvchilar</span>
+                  <Users className="h-4 w-4 text-cyan-400" />
+                </span>
+                <div className="text-3xl font-black text-foreground">{userGrants.length} ta</div>
+                <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCheck className="h-3 w-3" /> Tizimda qayd etilgan
+                </span>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleResetPricing} className="text-xs text-muted-foreground">
-                <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                Standartga Qaytarish
-              </Button>
+
+              <div className="surface-card p-5 rounded-2xl border-emerald-500/20 space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+                  <span>Faol Pro / Agency</span>
+                  <Zap className="h-4 w-4 text-emerald-400" />
+                </span>
+                <div className="text-3xl font-black text-emerald-400">
+                  {userGrants.filter((g) => g.isActive && g.plan !== "free").length} ta
+                </div>
+                <span className="text-[11px] text-muted-foreground">Cheklovlarsiz foydalanuvchilar</span>
+              </div>
+
+              <div className="surface-card p-5 rounded-2xl border-blue-500/20 space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+                  <span>Tasdiqlangan Daromad</span>
+                  <DollarSign className="h-4 w-4 text-blue-400" />
+                </span>
+                <div className="text-2xl font-black text-foreground">
+                  {totalApprovedSum.toLocaleString()} so'm
+                </div>
+                <span className="text-[11px] text-cyan-300 font-mono font-bold">
+                  ≈ ${totalApprovedUsd} jami tushum
+                </span>
+              </div>
+
+              <div className="surface-card p-5 rounded-2xl border-purple-500/20 space-y-1">
+                <span className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+                  <span>AI Dvigateli & Holat</span>
+                  <Cpu className="h-4 w-4 text-purple-400" />
+                </span>
+                <div className="text-lg font-bold text-foreground truncate">
+                  {featureConfig.aiModel || "Gemini 2.5 Flash"}
+                </div>
+                <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <Activity className="h-3 w-3" />
+                  {featureConfig.maintenanceMode ? "🛑 Texnik rejimda" : "⚡ Barcha funksiyalar faol"}
+                </span>
+              </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-3">
-              {(["free", "pro", "agency"] as PlanId[]).map((planId) => {
-                const item = editablePricing[planId] || pricingConfig[planId];
-                const isPro = planId === "pro";
-                return (
-                  <div
-                    key={planId}
-                    className={`rounded-2xl border p-5 bg-card/60 backdrop-blur-md space-y-4 ${
-                      isPro ? "border-cyan-500/50 shadow-lg shadow-cyan-500/10" : "border-border/80"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">
-                        {planId.toUpperCase()}
-                      </span>
-                      {isPro && (
-                        <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
-                          Eng ommabop
-                        </span>
-                      )}
-                    </div>
+            {/* Quick Action Control Bar */}
+            <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-card to-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-cyan-400" />
+                  Markaziy Boshqaruv Qulayliklari
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Platformani boshqa odamlar foydalanishi uchun bir zumda moslashtiring yoki cheklovlarni o'zgartiring.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setActiveTab("features")}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs"
+                >
+                  <Sliders className="h-3.5 w-3.5 mr-1" />
+                  Funksiyalarni Boshqarish
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab("users")}
+                  className="text-xs border-cyan-500/30 text-cyan-300"
+                >
+                  <Users className="h-3.5 w-3.5 mr-1" />
+                  Yangi Dostup Berish
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab("payments")}
+                  className="text-xs border-border"
+                >
+                  <CreditCard className="h-3.5 w-3.5 mr-1" />
+                  Click & Payme
+                </Button>
+              </div>
+            </div>
 
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground uppercase">Tarif Nomi</label>
-                      <Input
-                        value={item.name}
-                        onChange={(e) =>
-                          setEditablePricing((prev) => ({
-                            ...prev,
-                            [planId]: { ...prev[planId], name: e.target.value },
-                          }))
-                        }
-                        className="mt-1 h-9 text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground uppercase">
-                        Narxi (So'mda):
-                      </label>
-                      <Input
-                        type="number"
-                        value={item.priceUzSum}
-                        onChange={(e) =>
-                          setEditablePricing((prev) => ({
-                            ...prev,
-                            [planId]: { ...prev[planId], priceUzSum: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className="mt-1 h-9 text-xs font-mono font-bold"
-                      />
-                      <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                        = {item.priceUzSum.toLocaleString()} so'm
-                      </span>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground uppercase">
-                        Narxi (Dollarda $):
-                      </label>
-                      <Input
-                        type="number"
-                        value={item.priceUsd}
-                        onChange={(e) =>
-                          setEditablePricing((prev) => ({
-                            ...prev,
-                            [planId]: { ...prev[planId], priceUsd: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className="mt-1 h-9 text-xs font-mono font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-muted-foreground uppercase">
-                        Oylik Video Tahlil Limiti:
-                      </label>
-                      <Input
-                        type="number"
-                        value={item.analysisLimit}
-                        onChange={(e) =>
-                          setEditablePricing((prev) => ({
-                            ...prev,
-                            [planId]: { ...prev[planId], analysisLimit: Number(e.target.value) || 0 },
-                          }))
-                        }
-                        className="mt-1 h-9 text-xs font-mono font-bold"
-                      />
-                    </div>
-
-                    <Button
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9"
-                      onClick={() => handleSavePrice(planId)}
+            {/* Live System Feature Status Summary */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-3">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-cyan-400" />
+                  Joriy Funksiyalar Holati (Live Toggles)
+                </h3>
+                <div className="divide-y divide-border/40 text-xs">
+                  <div className="py-2.5 flex justify-between items-center">
+                    <span>Instagram Reels Havolasi orqali tahlil:</span>
+                    <span
+                      className={`font-bold font-mono px-2 py-0.5 rounded-full text-[10px] ${
+                        featureConfig.enableInstagramLink
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-red-500/20 text-red-400 border border-red-500/30"
+                      }`}
                     >
-                      <Check className="h-3.5 w-3.5 mr-1" />
-                      Narxni Saqlash
-                    </Button>
+                      {featureConfig.enableInstagramLink ? "YOQILGAN" : "O'CHIRILGAN"}
+                    </span>
                   </div>
-                );
-              })}
+                  <div className="py-2.5 flex justify-between items-center">
+                    <span>AI Ssenariy & 5x Viral Hook generatori:</span>
+                    <span
+                      className={`font-bold font-mono px-2 py-0.5 rounded-full text-[10px] ${
+                        featureConfig.enableAiScriptGen
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-red-500/20 text-red-400 border border-red-500/30"
+                      }`}
+                    >
+                      {featureConfig.enableAiScriptGen ? "YOQILGAN" : "O'CHIRILGAN"}
+                    </span>
+                  </div>
+                  <div className="py-2.5 flex justify-between items-center">
+                    <span>1-bosishli A4 PDF Audit Eksporti:</span>
+                    <span
+                      className={`font-bold font-mono px-2 py-0.5 rounded-full text-[10px] ${
+                        featureConfig.enablePdfAuditExport
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-red-500/20 text-red-400 border border-red-500/30"
+                      }`}
+                    >
+                      {featureConfig.enablePdfAuditExport ? "YOQILGAN" : "O'CHIRILGAN"}
+                    </span>
+                  </div>
+                  <div className="py-2.5 flex justify-between items-center">
+                    <span>Click & Payme orqali avtomatik dostup:</span>
+                    <span
+                      className={`font-bold font-mono px-2 py-0.5 rounded-full text-[10px] ${
+                        featureConfig.autoApprovePayments
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                      }`}
+                    >
+                      {featureConfig.autoApprovePayments ? "AVTOMATIK (0 KUTISH)" : "QO'LDA TASDIQLASH"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending Payment Requests Card */}
+              <div className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-400" />
+                    Kutilayotgan So'rovlar
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-cyan-400 p-0 h-auto"
+                    onClick={() => setActiveTab("payments")}
+                  >
+                    Barchasini ko'rish →
+                  </Button>
+                </div>
+                {paymentRequests.filter((r) => r.status === "pending").length === 0 ? (
+                  <div className="text-center py-8 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-400/50 mx-auto mb-2" />
+                    Barcha to'lovlar qayta ishlangan! Yangi kutilayotgan so'rov yo'q.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {paymentRequests
+                      .filter((r) => r.status === "pending")
+                      .slice(0, 3)
+                      .map((req) => (
+                        <div
+                          key={req.id}
+                          className="p-2.5 rounded-xl bg-surface/70 border border-border/60 flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-foreground block">{req.userContact}</span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {req.planName} • {req.priceUzSum.toLocaleString()} so'm
+                            </span>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px] bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                            onClick={() => approvePaymentRequest(req.id, 30)}
+                          >
+                            Tasdiqlash
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: USER ACCESS & SUBSCRIPTIONS */}
-        {activeTab === "users" && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Obuna Sotib Olganlarga Dostup Berish</h2>
-              <p className="text-xs text-muted-foreground">
-                To'lov qilgan mijozning telefon raqami yoki Google/email hisobini kiriting va unga Pro yoki Agency dostupini faollashtiring.
-              </p>
+        {/* ========================================================================= */}
+        {/* TAB 2: PLATFORM FEATURES & AI ENGINE CONTROLS */}
+        {/* ========================================================================= */}
+        {activeTab === "features" && (
+          <form onSubmit={handleSaveFeatures} className="space-y-6">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Platforma Funksiyalari & Sozlamalari</h2>
+                <p className="text-xs text-muted-foreground">
+                  Istalgan funksiyani 1 ta tugma bilan yoqing, o'chiring yoki chegaralarini boshqaring.
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs h-9 shadow-md shadow-cyan-500/20"
+              >
+                <Check className="h-3.5 w-3.5 mr-1.5" />
+                O'zgarishlarni Saqlash
+              </Button>
             </div>
 
-            {/* Grant Form */}
-            <form
-              onSubmit={handleAddGrant}
-              className="rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-md space-y-4"
-            >
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase font-mono">
-                <Plus className="h-4 w-4" />
-                <span>Yangi Foydalanuvchiga Obuna Qo'shish</span>
+            {/* MASTER FEATURE SWITCHES */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Instagram Link Analysis Toggle */}
+              <div className="p-4 rounded-2xl border border-border/80 bg-card/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-pink-400" />
+                    <span className="text-xs font-bold text-foreground">Instagram Link Tahlili</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={featureConfig.enableInstagramLink}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, enableInstagramLink: e.target.checked }))
+                    }
+                    className="h-5 w-5 rounded accent-cyan-500 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Foydalanuvchilar to'g'ridan-to'g'ri Instagram Reels havolasini qo'yib tahlil qila olishini boshqarish.
+                </p>
+                <span
+                  className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full inline-block ${
+                    featureConfig.enableInstagramLink ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  }`}
+                >
+                  {featureConfig.enableInstagramLink ? "FAOL (YOQILGAN)" : "TO'XTATILGAN"}
+                </span>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {/* AI Script & Hook Generator Toggle */}
+              <div className="p-4 rounded-2xl border border-border/80 bg-card/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold text-foreground">AI Ssenariy & 5x Hook</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={featureConfig.enableAiScriptGen}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, enableAiScriptGen: e.target.checked }))
+                    }
+                    className="h-5 w-5 rounded accent-cyan-500 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Tahlildan so'ng videoni virusli qilish uchun 5 xil hook va professional ssenariy generatsiya kartasi.
+                </p>
+                <span
+                  className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full inline-block ${
+                    featureConfig.enableAiScriptGen ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  }`}
+                >
+                  {featureConfig.enableAiScriptGen ? "FAOL (YOQILGAN)" : "TO'XTATILGAN"}
+                </span>
+              </div>
+
+              {/* PDF Audit Export Toggle */}
+              <div className="p-4 rounded-2xl border border-border/80 bg-card/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-foreground">A4 PDF Audit Eksporti</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={featureConfig.enablePdfAuditExport}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, enablePdfAuditExport: e.target.checked }))
+                    }
+                    className="h-5 w-5 rounded accent-cyan-500 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Foydalanuvchilarga to'liq tahlil hisobotini 1 bosishda A4 formatidagi PDF fayl sifatida saqlash imkoniyati.
+                </p>
+                <span
+                  className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full inline-block ${
+                    featureConfig.enablePdfAuditExport ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  }`}
+                >
+                  {featureConfig.enablePdfAuditExport ? "FAOL (YOQILGAN)" : "TO'XTATILGAN"}
+                </span>
+              </div>
+
+              {/* Automatic Instant Payment Access Toggle */}
+              <div className="p-4 rounded-2xl border border-border/80 bg-card/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-400" />
+                    <span className="text-xs font-bold text-foreground">Avtomatik To'lov & Dostup</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={featureConfig.autoApprovePayments}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, autoApprovePayments: e.target.checked }))
+                    }
+                    className="h-5 w-5 rounded accent-cyan-500 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Mijoz Click yoki Payme orqali to'laganda kutishsiz 0 soniyada obunani avtomatik ochish tizimi.
+                </p>
+                <span
+                  className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full inline-block ${
+                    featureConfig.autoApprovePayments ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+                  }`}
+                >
+                  {featureConfig.autoApprovePayments ? "AVTOMATIK YOQILGAN" : "QO'LDA TASDIQLASH"}
+                </span>
+              </div>
+
+              {/* Maintenance Mode Toggle */}
+              <div className="p-4 rounded-2xl border border-amber-500/40 bg-amber-500/5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <span className="text-xs font-bold text-foreground">Texnik Ishlar Rejimi</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={featureConfig.maintenanceMode}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, maintenanceMode: e.target.checked }))
+                    }
+                    className="h-5 w-5 rounded accent-amber-500 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Sayt tepasida rejaviy texnik ishlar bannerini yoqadi va foydalanuvchilarni ogohlantiradi.
+                </p>
+                <span
+                  className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full inline-block ${
+                    featureConfig.maintenanceMode ? "bg-red-500/20 text-red-400" : "bg-emerald-500/20 text-emerald-400"
+                  }`}
+                >
+                  {featureConfig.maintenanceMode ? "TEXNIK REJIM FAOL" : "NORMAL REJIM"}
+                </span>
+              </div>
+
+              {/* Global Banner Switch */}
+              <div className="p-4 rounded-2xl border border-border/80 bg-card/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Megaphone className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold text-foreground">Yuqori Sayt Banneri</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={featureConfig.showGlobalBanner}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, showGlobalBanner: e.target.checked }))
+                    }
+                    className="h-5 w-5 rounded accent-cyan-500 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Saytning eng yuqori qismida barcha sahifalarda chiquvchi maxsus xabar banneri.
+                </p>
+                <span
+                  className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full inline-block ${
+                    featureConfig.showGlobalBanner ? "bg-emerald-500/20 text-emerald-400" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {featureConfig.showGlobalBanner ? "KO'RSATILMOQDA" : "YASHIRILGAN"}
+                </span>
+              </div>
+            </div>
+
+            {/* AI MODEL & PARAMETERS CONFIGURATION */}
+            <div className="rounded-2xl border border-cyan-500/30 bg-card/60 p-5 space-y-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-cyan-400" />
+                Sun'iy Intellekt (AI) Dvigatel Parametrlari
+              </h3>
+
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    Telefon raqam yoki Google Email:
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Asosiy AI Model:
+                  </label>
+                  <select
+                    value={featureConfig.aiModel}
+                    onChange={(e) => setFeatureConfig((prev) => ({ ...prev, aiModel: e.target.value }))}
+                    className="w-full h-10 rounded-xl border border-input bg-surface px-3 py-1 text-xs text-foreground font-semibold"
+                  >
+                    <option value="gemini-2.5-flash">Google Gemini 2.5 Flash (Ultra tezkor, tavsiya etiladi)</option>
+                    <option value="gemini-1.5-pro">Google Gemini 1.5 Pro (Chuqur tahlil)</option>
+                    <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (Yuqori aniqlik)</option>
+                    <option value="gpt-4o">OpenAI GPT-4o (Multimodal)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    AI Tahlil Qat'iyligi (Diagnostika):
+                  </label>
+                  <select
+                    value={featureConfig.aiStrictness}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({
+                        ...prev,
+                        aiStrictness: e.target.value as "balanced" | "strict" | "creative",
+                      }))
+                    }
+                    className="w-full h-10 rounded-xl border border-input bg-surface px-3 py-1 text-xs text-foreground font-semibold"
+                  >
+                    <option value="balanced">Balansli (Standart Meta algoritmi)</option>
+                    <option value="strict">Qattiqqo'l (Ekspert darajasi, kamchiliklarga qat'iy)</option>
+                    <option value="creative">Ijodiy (Yumshoqroq, ko'proq virusli g'oyalar)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Free (Bepul) Foydalanuvchilar Limiti:
                   </label>
                   <Input
-                    placeholder="+998901234567 yoki user@gmail.com"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={featureConfig.freePlanAnalysisLimit}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({
+                        ...prev,
+                        freePlanAnalysisLimit: parseInt(e.target.value) || 2,
+                      }))
+                    }
+                    className="h-10 text-xs font-mono bg-surface"
+                  />
+                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                    Yangi kirgan har bir kishiga beriladigan bepul oylik tahlillar
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-2">
+                <label className="text-[11px] font-semibold text-foreground block">
+                  Sayt Tepasidagi E'lon Banner Matni:
+                </label>
+                <Input
+                  value={featureConfig.globalBannerText}
+                  onChange={(e) =>
+                    setFeatureConfig((prev) => ({ ...prev, globalBannerText: e.target.value }))
+                  }
+                  placeholder="Masalan: 🎉 Yangi funksiya: Instagram Reels link orqali tahlil qilish tayyor!"
+                  className="h-10 text-xs bg-surface"
+                />
+              </div>
+
+              {featureConfig.maintenanceMode && (
+                <div className="space-y-1.5 pt-2">
+                  <label className="text-[11px] font-semibold text-amber-400 block">
+                    Texnik Ishlar Matni (Foydalanuvchilarga ko'rinadi):
+                  </label>
+                  <Input
+                    value={featureConfig.maintenanceMessage}
+                    onChange={(e) =>
+                      setFeatureConfig((prev) => ({ ...prev, maintenanceMessage: e.target.value }))
+                    }
+                    className="h-10 text-xs bg-surface border-amber-500/40"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetPlatformSettings}
+                  className="text-xs"
+                >
+                  Standartga qaytarish
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  Saqlash
+                </Button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 3: USERS & ACCESS MANAGEMENT */}
+        {/* ========================================================================= */}
+        {activeTab === "users" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Foydalanuvchilar & Dostuplarni Boshqarish</h2>
+                <p className="text-xs text-muted-foreground">
+                  Istalgan foydalanuvchiga 1 ta bosishda obuna berish, muddatini uzaytirish yoki to'xtatish.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono">
+                  Jami: <strong>{userGrants.length}</strong> ta
+                </span>
+              </div>
+            </div>
+
+            {/* Grant User Access Form */}
+            <form onSubmit={handleAddGrant} className="rounded-2xl border border-cyan-500/30 bg-card/60 p-5 space-y-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Plus className="h-4 w-4 text-cyan-400" />
+                Yangi Foydalanuvchiga Qo'lda Dostup Ochish
+              </h3>
+
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Email yoki Telefon raqam: <span className="text-cyan-400">*</span>
+                  </label>
+                  <Input
+                    required
+                    placeholder="user@gmail.com yoki +998 90 123 45 67"
                     value={grantIdentifier}
                     onChange={(e) => setGrantIdentifier(e.target.value)}
-                    className="h-10 text-xs font-mono"
+                    className="h-10 text-xs font-mono bg-surface"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
                     Tarifni tanlang:
                   </label>
                   <select
                     value={grantPlan}
                     onChange={(e) => setGrantPlan(e.target.value as PlanId)}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground font-semibold"
+                    className="w-full h-10 rounded-xl border border-input bg-surface px-3 py-1 text-xs text-foreground font-bold"
                   >
                     <option value="pro">Pro Yaratuvchi (100 ta tahlil)</option>
                     <option value="agency">Agency & SMM (500 ta tahlil)</option>
@@ -579,14 +1128,15 @@ function AdminPage() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    Muddati:
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Amal qilish muddati:
                   </label>
                   <select
                     value={grantDays}
                     onChange={(e) => setGrantDays(e.target.value)}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground font-semibold"
+                    className="w-full h-10 rounded-xl border border-input bg-surface px-3 py-1 text-xs text-foreground font-bold"
                   >
+                    <option value="7">7 kun (Sinov)</option>
                     <option value="30">1 oy (30 kun)</option>
                     <option value="90">3 oy (90 kun)</option>
                     <option value="180">6 oy (180 kun)</option>
@@ -594,115 +1144,178 @@ function AdminPage() {
                     <option value="3650">Umrbod (10 yil)</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    Izoh (ixtiyoriy):
-                  </label>
-                  <Input
-                    placeholder="Masalan: Click orqali to'landi"
-                    value={grantNote}
-                    onChange={(e) => setGrantNote(e.target.value)}
-                    className="h-10 text-xs"
-                  />
-                </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                  Izoh (ixtiyoriy):
+                </label>
+                <Input
+                  placeholder="Masalan: Click orqali to'landi, VIP mijoz"
+                  value={grantNote}
+                  onChange={(e) => setGrantNote(e.target.value)}
+                  className="h-9 text-xs bg-surface"
+                />
+              </div>
+
+              <div className="flex justify-between items-center pt-1">
                 <Button
                   type="submit"
-                  className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold text-xs h-10 px-5 shadow-md shadow-cyan-500/20"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs h-10 px-5 shadow-md shadow-cyan-500/20"
                 >
                   <Check className="h-4 w-4 mr-1.5" />
                   Obunani Faollashtirish
                 </Button>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">Tezkor sinov:</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs border-cyan-500/40 text-cyan-300"
-                    onClick={() => handleGrantCurrentSession("pro", 30)}
-                  >
-                    ⚡ Joriy hisobimga Pro berish
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleGrantCurrentSession("pro", 30)}
+                  className="text-xs border-cyan-500/30 text-cyan-300"
+                >
+                  ⚡ Joriy hisobimga Pro berish
+                </Button>
               </div>
             </form>
 
-            {/* Registry List */}
-            <div className="rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-md">
-              <h3 className="text-sm font-bold text-foreground mb-3">
-                Faol Obunachilar Ro'yxati ({userGrants.length})
-              </h3>
+            {/* User Registry List with Search & 1-Click Operations */}
+            <div className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="h-4 w-4 absolute left-3 top-2.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Foydalanuvchini qidirish..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="h-9 pl-9 text-xs bg-surface"
+                  />
+                </div>
 
-              {userGrants.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">
-                  Hozircha qo'lda kiritilgan obunachilar mavjud emas.
+                <div className="flex flex-wrap gap-1 text-xs">
+                  {(["all", "active", "expired", "pro", "agency"] as const).map((filterKey) => (
+                    <button
+                      key={filterKey}
+                      type="button"
+                      onClick={() => setUserFilter(filterKey)}
+                      className={`px-2.5 py-1 rounded-lg font-semibold uppercase text-[10px] transition-colors ${
+                        userFilter === filterKey
+                          ? "bg-cyan-500 text-slate-950"
+                          : "bg-surface text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {filterKey}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filteredUsers.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-8 text-center">
+                  Bunday foydalanuvchi topilmadi.
                 </p>
               ) : (
                 <div className="divide-y divide-border/60 overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="text-muted-foreground font-mono uppercase text-[10px]">
-                        <th className="py-2.5 px-3">Foydalanuvchi (Email / Tel)</th>
-                        <th className="py-2.5 px-3">Tarif</th>
-                        <th className="py-2.5 px-3">Berilgan sana</th>
-                        <th className="py-2.5 px-3">Tugash sanasi</th>
+                        <th className="py-2.5 px-3">Foydalanuvchi</th>
+                        <th className="py-2.5 px-3">Tarif (1-bosishda o'zgartirish)</th>
+                        <th className="py-2.5 px-3">Muddati</th>
                         <th className="py-2.5 px-3">Izoh</th>
-                        <th className="py-2.5 px-3 text-right">Amal</th>
+                        <th className="py-2.5 px-3 text-right">Tezkor Amallar</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
-                      {userGrants.map((grant) => {
+                      {filteredUsers.map((grant) => {
                         const daysLeft = Math.ceil(
-                          (new Date(grant.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                          (new Date(grant.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
                         );
-                        const isExpiring = daysLeft <= 3 && daysLeft >= 0;
                         const isExpired = daysLeft < 0;
 
                         return (
                           <tr key={grant.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-3 font-mono font-semibold text-foreground">
+                            <td className="py-3 px-3 font-mono font-bold text-foreground">
                               {grant.identifier}
                             </td>
                             <td className="py-3 px-3">
-                              <span className="rounded-full bg-cyan-500/20 text-cyan-300 px-2 py-0.5 text-[10px] font-bold font-mono uppercase">
-                                {grant.plan}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-muted-foreground">
-                              {new Date(grant.grantedAt).toLocaleDateString()}
+                              <select
+                                value={grant.plan}
+                                onChange={(e) => {
+                                  updateUserGrantPlan(grant.id, e.target.value as PlanId);
+                                  toast.success(`${grant.identifier} tarifi ${e.target.value.toUpperCase()} ga o'zgartirildi!`);
+                                }}
+                                className="h-7 text-[11px] font-bold rounded-lg border border-border bg-surface px-2 py-0.5 text-cyan-300"
+                              >
+                                <option value="free">FREE</option>
+                                <option value="pro">PRO (100)</option>
+                                <option value="agency">AGENCY (500)</option>
+                              </select>
                             </td>
                             <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-foreground">
-                                  {new Date(grant.expiresAt).toLocaleDateString()}
-                                </span>
+                              <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                                <span>{new Date(grant.expiresAt).toLocaleDateString()}</span>
                                 {isExpired ? (
                                   <span className="text-[10px] text-red-400 font-bold">(Tugagan)</span>
-                                ) : isExpiring ? (
-                                  <span className="text-[10px] text-amber-400 font-bold">({daysLeft} kun qoldi)</span>
                                 ) : (
-                                  <span className="text-[10px] text-emerald-400">({daysLeft} kun)</span>
+                                  <span className="text-[10px] text-emerald-400 font-bold">({daysLeft} kun)</span>
                                 )}
                               </div>
                             </td>
-                            <td className="py-3 px-3 text-muted-foreground">{grant.note || "—"}</td>
+                            <td className="py-3 px-3 text-muted-foreground max-w-xs truncate">
+                              {grant.note || "—"}
+                            </td>
                             <td className="py-3 px-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                onClick={() => {
-                                  revokeUserAccess(grant.id);
-                                  toast.info("Dostup o'chirildi.");
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[10px] text-cyan-300 hover:bg-cyan-500/10"
+                                  onClick={() => {
+                                    extendUserGrant(grant.id, 7);
+                                    toast.success(`${grant.identifier} ga +7 kun qo'shildi!`);
+                                  }}
+                                  title="+7 kun qo'shish"
+                                >
+                                  +7k
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[10px] text-emerald-300 hover:bg-emerald-500/10 font-bold"
+                                  onClick={() => {
+                                    extendUserGrant(grant.id, 30);
+                                    toast.success(`${grant.identifier} ga +30 kun qo'shildi!`);
+                                  }}
+                                  title="+30 kun qo'shish"
+                                >
+                                  +30k
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-[10px] text-purple-300 hover:bg-purple-500/10"
+                                  onClick={() => {
+                                    extendUserGrant(grant.id, 365);
+                                    toast.success(`${grant.identifier} ga +1 yil qo'shildi!`);
+                                  }}
+                                  title="+1 yil qo'shish"
+                                >
+                                  +1y
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-1"
+                                  onClick={() => {
+                                    revokeUserAccess(grant.id);
+                                    toast.info("Dostup o'chirildi.");
+                                  }}
+                                  title="O'chirish"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -715,338 +1328,319 @@ function AdminPage() {
           </div>
         )}
 
-        {/* TAB 3: ANNOUNCEMENTS */}
-        {activeTab === "announcements" && (
+        {/* ========================================================================= */}
+        {/* TAB 4: PRICING & LIMITS */}
+        {/* ========================================================================= */}
+        {activeTab === "pricing" && (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Yangiliklar va E'lonlar Kiritish</h2>
-              <p className="text-xs text-muted-foreground">
-                Bu yerda kiritilgan yangiliklar va aksiyalar barcha foydalanuvchilar ekranining yuqori qismida zamonaviy banner sifatida ko'rinadi.
-              </p>
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Tarif Narxlari va Limitlari</h2>
+                <p className="text-xs text-muted-foreground">
+                  Bu yerda kiritilgan narxlar saytdagi barcha sahifalar, modal va to'lov havolalarida darhol aks etadi.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetPricing}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                Standartga Qaytarish
+              </Button>
             </div>
 
-            {/* Announcement Form */}
-            <form
-              onSubmit={handleAddAnnouncement}
-              className="rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-md space-y-4"
-            >
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase font-mono">
-                <Plus className="h-4 w-4" />
-                <span>Yangi E'lon Yaratish</span>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    E'lon Sarlavhasi:
-                  </label>
-                  <Input
-                    placeholder="Masalan: Yangi Meta 2026 algoritmi integratsiya qilindi!"
-                    value={annTitle}
-                    onChange={(e) => setAnnTitle(e.target.value)}
-                    className="h-10 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    Kategoriya:
-                  </label>
-                  <select
-                    value={annCategory}
-                    onChange={(e) => setAnnCategory(e.target.value as any)}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground font-semibold"
+            <div className="grid gap-6 md:grid-cols-3">
+              {(["free", "pro", "agency"] as PlanId[]).map((planId) => {
+                const config = editablePricing[planId] || DEFAULT_PLAN_PRICING[planId];
+                return (
+                  <div
+                    key={planId}
+                    className={`surface-card rounded-2xl p-5 border flex flex-col justify-between space-y-4 ${
+                      planId === "pro"
+                        ? "border-cyan-500/40 bg-gradient-to-b from-cyan-500/10 via-card to-card"
+                        : "border-border/80"
+                    }`}
                   >
-                    <option value="update">Algoritm yangilanishi</option>
-                    <option value="promo">Aksiya / Chegirma</option>
-                    <option value="news">Umumiy Yangilik</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                  E'lon Matni:
-                </label>
-                <textarea
-                  placeholder="E'lon haqida to'liq ma'lumot yozing..."
-                  rows={3}
-                  value={annContent}
-                  onChange={(e) => setAnnContent(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold text-xs h-10 px-6 shadow-md shadow-cyan-500/20"
-              >
-                <Megaphone className="h-4 w-4 mr-1.5" />
-                E'lonni Chiqarish
-              </Button>
-            </form>
-
-            {/* Announcements List */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-foreground">Mavjud E'lonlar ({announcements.length})</h3>
-
-              {announcements.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">Hozircha hech qanday e'lon yo'q.</p>
-              ) : (
-                <div className="grid gap-3">
-                  {announcements.map((ann) => (
-                    <div
-                      key={ann.id}
-                      className={`rounded-xl border p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        ann.isActive
-                          ? "border-cyan-500/40 bg-card/70"
-                          : "border-border/60 bg-secondary/20 opacity-60"
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase font-mono ${
-                              ann.category === "promo"
-                                ? "bg-amber-500/20 text-amber-300"
-                                : ann.category === "update"
-                                ? "bg-cyan-500/20 text-cyan-300"
-                                : "bg-purple-500/20 text-purple-300"
-                            }`}
-                          >
-                            {ann.category === "promo"
-                              ? "Aksiya"
-                              : ann.category === "update"
-                              ? "Algoritm"
-                              : "Yangilik"}
-                          </span>
-                          <h4 className="text-sm font-bold text-foreground">{ann.title}</h4>
-                        </div>
-                        <p className="text-xs text-muted-foreground max-w-2xl">{ann.content}</p>
-                        <span className="text-[10px] text-muted-foreground/60 block font-mono">
-                          {new Date(ann.createdAt).toLocaleDateString()}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs uppercase font-mono font-bold text-cyan-400">
+                          {planId} TARIFI
                         </span>
+                        {planId === "pro" && (
+                          <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-300 border border-cyan-500/30">
+                            Eng ommabop
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-8"
-                          onClick={() => {
-                            toggleAnnouncement(ann.id);
-                            toast.info(ann.isActive ? "E'lon yashirildi." : "E'lon faollashtirildi.");
-                          }}
-                        >
-                          {ann.isActive ? "Yashirish" : "Ko'rsatish"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          onClick={() => {
-                            deleteAnnouncement(ann.id);
-                            toast.info("E'lon o'chirildi.");
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div>
+                        <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                          Tarif nomi:
+                        </label>
+                        <Input
+                          value={config.name}
+                          onChange={(e) =>
+                            setEditablePricing((prev) => ({
+                              ...prev,
+                              [planId]: { ...prev[planId], name: e.target.value },
+                            }))
+                          }
+                          className="h-9 text-xs font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                          Narxi (so'mda / oyiga):
+                        </label>
+                        <Input
+                          type="number"
+                          value={config.priceUzSum}
+                          onChange={(e) =>
+                            setEditablePricing((prev) => ({
+                              ...prev,
+                              [planId]: { ...prev[planId], priceUzSum: parseInt(e.target.value) || 0 },
+                            }))
+                          }
+                          className="h-9 text-xs font-mono font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                          Narxi (USD $ / oyiga):
+                        </label>
+                        <Input
+                          type="number"
+                          value={config.priceUsd}
+                          onChange={(e) =>
+                            setEditablePricing((prev) => ({
+                              ...prev,
+                              [planId]: { ...prev[planId], priceUsd: parseInt(e.target.value) || 0 },
+                            }))
+                          }
+                          className="h-9 text-xs font-mono font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                          Oylik video tahlil limiti:
+                        </label>
+                        <Input
+                          type="number"
+                          value={config.analysisLimit}
+                          onChange={(e) =>
+                            setEditablePricing((prev) => ({
+                              ...prev,
+                              [planId]: { ...prev[planId], analysisLimit: parseInt(e.target.value) || 0 },
+                            }))
+                          }
+                          className="h-9 text-xs font-mono font-semibold"
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+
+                    <Button
+                      size="sm"
+                      className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs h-9 shadow-md shadow-cyan-500/20"
+                      onClick={() => handleSavePrice(planId)}
+                    >
+                      <Check className="h-3.5 w-3.5 mr-1" />
+                      {config.name}ni Saqlash
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* TAB 4: TELEGRAM BOT & PAYMENT REQUESTS */}
-        {activeTab === "telegram" && (
+        {/* ========================================================================= */}
+        {/* TAB 5: PAYMENTS, GATEWAYS & SUPPORT CONTACTS */}
+        {/* ========================================================================= */}
+        {activeTab === "payments" && (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Telegram Bot & To'lov So'rovlari</h2>
+            <div className="border-b border-border/60 pb-3">
+              <h2 className="text-lg font-bold text-foreground">To'lov Shlyuzlari & Aloqa Sozlamalari</h2>
               <p className="text-xs text-muted-foreground">
-                Mijozlar to'lov qilganda avtomatik Telegram botingizga xabar keladi. Siz bu yerdan bot sozlamalarini boshqarasiz va to'lovlarga ruxsat berasiz.
+                Click, Payme, Telegram bot va administrator aloqa kontaktlarini bir joydan boshqaring.
               </p>
             </div>
 
-            {/* Telegram Bot Settings Form */}
+            {/* Support Contacts Form */}
             <form
-              onSubmit={handleSaveBotConfig}
-              className="rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-md space-y-4"
+              onSubmit={handleSavePaymentAndSupport}
+              className="rounded-2xl border border-cyan-500/30 bg-card/60 p-5 space-y-4"
             >
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase font-mono">
-                <Bot className="h-4 w-4" />
-                <span>Telegram Bot Ulanish Sozlamalari</span>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    Telegram Bot Token (@BotFather bergan token):
-                  </label>
-                  <Input
-                    placeholder="Masalan: 789123456:AAFdKxyz..."
-                    value={botTokenInput}
-                    onChange={(e) => setBotTokenInput(e.target.value)}
-                    className="h-10 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                    Sizning Chat ID raqamingiz (@userinfobot bergan ID):
-                  </label>
-                  <Input
-                    placeholder="Masalan: 987654321"
-                    value={chatIdInput}
-                    onChange={(e) => setChatIdInput(e.target.value)}
-                    className="h-10 text-xs font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/40">
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold text-xs h-10 px-5 shadow-md shadow-cyan-500/20"
-                  >
-                    <Check className="h-4 w-4 mr-1.5" />
-                    Sozlamalarni Saqlash
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isTestingBot}
-                    className="text-xs h-10 border-sky-500/40 text-sky-300 hover:bg-sky-500/10"
-                    onClick={handleTestBot}
-                  >
-                    {isTestingBot ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        Tekshirilmoqda...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-3.5 w-3.5 mr-1.5" />
-                        Test Xabar Yuborish
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <div className="text-[11px] text-muted-foreground">
-                  Status:{" "}
-                  {telegramBotConfig?.botToken && telegramBotConfig?.chatId ? (
-                    <span className="text-emerald-400 font-bold font-mono">● Faol & Ulagan</span>
-                  ) : (
-                    <span className="text-amber-400 font-bold font-mono">○ Token kiritilmagan</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Bot Creation Guide Card */}
-              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3.5 text-xs space-y-1.5">
-                <span className="font-bold text-sky-400 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" /> 1 daqiqada Bot ochish ko'rsatmasi:
-                </span>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground text-[11px]">
-                  <li>Telegramda <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-sky-300 underline font-mono">@BotFather</a> ga kiring va <code>/newbot</code> deb yozing.</li>
-                  <li>Botingizga nom va username bering. U bergan <b>HTTP API Token</b>ni nusxalab, yuqoridagi <b>Bot Token</b> maydoniga qo'ying.</li>
-                  <li>Telegramda <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="text-sky-300 underline font-mono">@userinfobot</a> ga kiring va <code>/start</code> bosing. U bergan <b>Id</b> raqamini <b>Chat ID</b> maydoniga qo'ying.</li>
-                  <li>O'zingiz yaratgan botingizga kirib <b>/start</b> tugmasini bosib qo'yishni unutmang!</li>
-                </ol>
-              </div>
-            </form>
-
-            {/* Click & Payme Merchant Gateway Config */}
-            <form onSubmit={handleSaveMerchantConfig} className="rounded-2xl border border-cyan-500/30 bg-card/60 p-5 backdrop-blur-md space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-400">
-                    <Sparkles className="h-4 w-4" />
-                    <span>Click & Payme To'lov Shlyuzi Sozlamalari</span>
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground mt-0.5">
-                    Avtomatik To'lov Parametrlari (Merchant ID)
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-cyan-400" />
+                    Administrator Kontaktlari (Saytdagi barcha tugmalarda aks etadi)
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Click va Payme orqali to'lovlar tushganda pulingiz to'g'ridan-to'g'ri ushbu hisoblarga tushadi
+                    Telegram orqali to'lov havolalari ushbu akkauntga yo'naltiriladi
                   </p>
                 </div>
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs"
                 >
                   <Check className="h-3.5 w-3.5 mr-1" />
-                  Sozlamalarni Saqlash
+                  Kontaktlarni Saqlash
                 </Button>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
-                    <span>Click Service ID:</span>
-                    <span className="text-[10px] text-sky-400 font-mono">my.click.uz</span>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Telegram Username (masalan: pray_boy yoki farkhadivich):
                   </label>
-                  <Input
-                    value={clickServiceId}
-                    onChange={(e) => setClickServiceId(e.target.value)}
-                    placeholder="Masalan: 32541"
-                    className="h-9 text-xs font-mono bg-surface/60"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-mono">@</span>
+                    <Input
+                      value={supportTelegramInput.replace("@", "")}
+                      onChange={(e) => setSupportTelegramInput(e.target.value)}
+                      placeholder="pray_boy"
+                      className="h-10 pl-7 text-xs font-mono bg-surface font-semibold"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
-                    <span>Click Merchant ID:</span>
-                    <span className="text-[10px] text-sky-400 font-mono">Click Merchant</span>
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Aloqa Telefon Raqami:
                   </label>
                   <Input
-                    value={clickMerchantId}
-                    onChange={(e) => setClickMerchantId(e.target.value)}
-                    placeholder="Masalan: 24890"
-                    className="h-9 text-xs font-mono bg-surface/60"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
-                    <span>Payme Merchant ID:</span>
-                    <span className="text-[10px] text-teal-400 font-mono">business.payme.uz</span>
-                  </label>
-                  <Input
-                    value={paymeMerchantId}
-                    onChange={(e) => setPaymeMerchantId(e.target.value)}
-                    placeholder="Masalan: 658932"
-                    className="h-9 text-xs font-mono bg-surface/60"
+                    value={supportPhoneInput}
+                    onChange={(e) => setSupportPhoneInput(e.target.value)}
+                    placeholder="+998 93 760 77 27"
+                    className="h-10 text-xs font-mono bg-surface font-semibold"
                   />
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-[11px] text-cyan-200 flex items-center justify-between">
-                <span>⚡ <strong>Avtomatik dostup:</strong> Har qanday mijoz Click, Payme yoki karta orqali to'lov qilishi bilanoq, tizim 0 soniyada unga obuna huquqini ochadi.</span>
-                <span className="font-bold text-emerald-400 font-mono text-xs shrink-0 ml-2">FAOL</span>
+              {/* Click & Payme Merchant IDs */}
+              <div className="pt-2 border-t border-border/60">
+                <span className="text-xs font-bold text-foreground block mb-2">
+                  Click & Payme To'lov Shlyuzi Parametrlari (Merchant ID):
+                </span>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Click Service ID:
+                    </label>
+                    <Input
+                      value={clickServiceId}
+                      onChange={(e) => setClickServiceId(e.target.value)}
+                      className="h-9 text-xs font-mono bg-surface"
+                      placeholder="32541"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Click Merchant ID:
+                    </label>
+                    <Input
+                      value={clickMerchantId}
+                      onChange={(e) => setClickMerchantId(e.target.value)}
+                      className="h-9 text-xs font-mono bg-surface"
+                      placeholder="24890"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Payme Merchant ID:
+                    </label>
+                    <Input
+                      value={paymeMerchantId}
+                      onChange={(e) => setPaymeMerchantId(e.target.value)}
+                      className="h-9 text-xs font-mono bg-surface"
+                      placeholder="658932"
+                    />
+                  </div>
+                </div>
               </div>
             </form>
 
-            {/* Payment Requests List */}
-            <div className="rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-md space-y-4">
+            {/* Telegram Bot Settings Form */}
+            <form onSubmit={handleSaveBotConfig} className="rounded-2xl border border-sky-500/30 bg-card/60 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-sky-400" />
+                    Administrator Telegram Boti (@nexreel_ai_bot)
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    To'lovlar tushganda yoki so'rovlar kelganda Telegramingizga 1-bosishli dostup tugmalari boradi
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isTestingBot}
+                    onClick={handleTestBot}
+                    className="text-xs border-sky-500/40 text-sky-300"
+                  >
+                    {isTestingBot ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}
+                    Botni Sinash
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs"
+                  >
+                    Saqlash
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                    Bot Token:
+                  </label>
+                  <Input
+                    value={botTokenInput}
+                    onChange={(e) => setBotTokenInput(e.target.value)}
+                    placeholder="9223798428:AAF6..."
+                    className="h-9 text-xs font-mono bg-surface"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                    Chat ID (Sizning Telegram ID):
+                  </label>
+                  <Input
+                    value={chatIdInput}
+                    onChange={(e) => setChatIdInput(e.target.value)}
+                    placeholder="5126649501"
+                    className="h-9 text-xs font-mono bg-surface"
+                  />
+                </div>
+              </div>
+            </form>
+
+            {/* Payment Requests & Transactions List */}
+            <div className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-foreground">
-                    Kelib Tushgan To'lov So'rovlari ({paymentRequests.length})
+                    To'lov So'rovlari va Tranzaksiyalar ({paymentRequests.length})
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Saytda "To'lov qildim" tugmasini bosib so'rov yuborgan mijozlar ro'yxati
+                    Mijozlar tomonidan amalga oshirilgan barcha to'lovlar va so'rovlar
                   </p>
                 </div>
                 {paymentRequests.filter((r) => r.status === "pending").length > 0 && (
                   <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold font-mono">
-                    {paymentRequests.filter((r) => r.status === "pending").length} ta yangi so'rov
+                    {paymentRequests.filter((r) => r.status === "pending").length} ta kutilmoqda
                   </span>
                 )}
               </div>
@@ -1065,7 +1659,7 @@ function AdminPage() {
                         <th className="py-2.5 px-3">Vaqti</th>
                         <th className="py-2.5 px-3">Chek / Izoh</th>
                         <th className="py-2.5 px-3">Holati</th>
-                        <th className="py-2.5 px-3 text-right">Ruxsat Berish</th>
+                        <th className="py-2.5 px-3 text-right">Amal</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
@@ -1094,14 +1688,14 @@ function AdminPage() {
                           <td className="py-3 px-3">
                             {req.status === "approved" ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] font-bold font-mono">
-                                <CheckCircle2 className="h-3 w-3" /> Tasdiqlandi
+                                <CheckCircle2 className="h-3 w-3" /> Tasdiqlangan
                               </span>
                             ) : req.status === "rejected" ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 text-red-400 px-2 py-0.5 text-[10px] font-bold font-mono">
                                 <XCircle className="h-3 w-3" /> Rad etildi
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 text-amber-300 px-2 py-0.5 text-[10px] font-bold font-mono animate-pulse">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 text-amber-300 px-2 py-0.5 text-[10px] font-bold font-mono">
                                 <Clock className="h-3 w-3" /> Kutilmoqda
                               </span>
                             )}
@@ -1111,19 +1705,18 @@ function AdminPage() {
                               <div className="flex items-center justify-end gap-1.5">
                                 <Button
                                   size="sm"
-                                  className="h-7 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-[11px]"
+                                  className="h-7 px-2.5 text-[11px] bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
                                   onClick={() => {
                                     approvePaymentRequest(req.id, 30);
-                                    toast.success(`${req.userContact} ga obuna faollashtirildi!`);
+                                    toast.success(`${req.userContact} uchun dostup faollashtirildi!`);
                                   }}
                                 >
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Ruxsat Berish
+                                  Dostup berish
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 text-[11px]"
+                                  className="h-7 px-2 text-[11px] text-red-400 hover:bg-red-500/10"
                                   onClick={() => {
                                     rejectPaymentRequest(req.id);
                                     toast.info("So'rov rad etildi.");
@@ -1133,9 +1726,7 @@ function AdminPage() {
                                 </Button>
                               </div>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground/60 font-mono">
-                                Bajarilgan
-                              </span>
+                              <span className="text-[11px] text-muted-foreground font-mono">Yakunlangan</span>
                             )}
                           </td>
                         </tr>
@@ -1148,58 +1739,217 @@ function AdminPage() {
           </div>
         )}
 
-        {/* TAB 5: SECURITY */}
-        {activeTab === "security" && (
-          <div className="max-w-md space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Admin PIN-kodini O'zgartirish</h2>
+        {/* ========================================================================= */}
+        {/* TAB 6: ANNOUNCEMENTS */}
+        {/* ========================================================================= */}
+        {activeTab === "announcements" && (
+          <div className="space-y-6">
+            <div className="border-b border-border/60 pb-3">
+              <h2 className="text-lg font-bold text-foreground">Yangiliklar va E'lonlar Kiritish</h2>
               <p className="text-xs text-muted-foreground">
-                Admin panelga kirish xavfsizligini ta'minlash uchun maxfiy PIN-kodni o'zgartirishingiz mumkin.
+                Kiritilgan e'lonlar barcha foydalanuvchilar ekranining yuqori qismida zamonaviy banner sifatida ko'rinadi.
               </p>
             </div>
 
-            <form
-              onSubmit={handleChangePin}
-              className="rounded-2xl border border-border/80 bg-card/60 p-5 backdrop-blur-md space-y-4"
-            >
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                  Joriy holat: <span className="font-mono text-emerald-400 font-bold">Faol (Himoyalangan ••••)</span>
-                </label>
+            <form onSubmit={handleAddAnnouncement} className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Plus className="h-4 w-4 text-cyan-400" />
+                Yangi E'lon Yaratish
+              </h3>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    E'lon Sarlavhasi:
+                  </label>
+                  <Input
+                    required
+                    placeholder="Masalan: Meta Reels 2026 yangilandi!"
+                    value={annTitle}
+                    onChange={(e) => setAnnTitle(e.target.value)}
+                    className="h-10 text-xs bg-surface"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-foreground block mb-1">
+                    Kategoriya:
+                  </label>
+                  <select
+                    value={annCategory}
+                    onChange={(e) => setAnnCategory(e.target.value as any)}
+                    className="w-full h-10 rounded-xl border border-input bg-surface px-3 py-1 text-xs text-foreground font-bold"
+                  >
+                    <option value="update">Algoritm Yangiligi</option>
+                    <option value="promo">Aksiya & Chegirma</option>
+                    <option value="news">Umumiy Yangilik</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                  Yangi PIN-kodni kiriting:
+                <label className="text-[11px] font-semibold text-foreground block mb-1">
+                  E'lon Matni:
                 </label>
-                <Input
-                  type="password"
-                  placeholder="Kamida 4 ta belgi"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value)}
-                  className="h-10 text-xs font-mono"
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Barcha foydalanuvchilarga ko'rinadigan qisqa va aniq ma'lumot..."
+                  value={annContent}
+                  onChange={(e) => setAnnContent(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-surface p-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold text-xs h-10"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs h-9 px-5 shadow-md shadow-cyan-500/20"
               >
-                <Key className="h-3.5 w-3.5 mr-1.5" />
-                Yangi PIN-kodni Saqlash
+                <Megaphone className="h-3.5 w-3.5 mr-1" />
+                E'lonni Chiqarish
               </Button>
             </form>
 
-            <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 text-xs space-y-2">
-              <div className="font-bold text-foreground flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                Administrator Aloqasi
-              </div>
-              <div className="text-muted-foreground text-[11px]">
-                Telegram: <span className="text-cyan-400 font-mono">@pray_boy</span>
-              </div>
-              <div className="text-muted-foreground text-[11px]">
-                Telefon: <span className="text-foreground font-mono">+998 93 760 77 27</span>
+            {/* Existing Announcements List */}
+            <div className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-3">
+              <h3 className="text-sm font-bold text-foreground">
+                Faol E'lonlar Ro'yxati ({announcements.length})
+              </h3>
+
+              {announcements.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">Hozircha e'lonlar mavjud emas.</p>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {announcements.map((ann) => (
+                    <div key={ann.id} className="py-3 flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono ${
+                              ann.category === "promo"
+                                ? "bg-amber-500/20 text-amber-300"
+                                : ann.category === "update"
+                                ? "bg-cyan-500/20 text-cyan-300"
+                                : "bg-purple-500/20 text-purple-300"
+                            }`}
+                          >
+                            {ann.category}
+                          </span>
+                          <span className="font-bold text-xs text-foreground">{ann.title}</span>
+                          {!ann.isActive && (
+                            <span className="text-[10px] text-muted-foreground font-mono">(To'xtatilgan)</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{ann.content}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[11px] h-7 px-2.5"
+                          onClick={() => toggleAnnouncement(ann.id)}
+                        >
+                          {ann.isActive ? "O'chirish" : "Yoqish"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => deleteAnnouncement(ann.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 7: SECURITY & SYSTEM RESET */}
+        {/* ========================================================================= */}
+        {activeTab === "security" && (
+          <div className="space-y-6">
+            <div className="border-b border-border/60 pb-3">
+              <h2 className="text-lg font-bold text-foreground">Xavfsizlik & Tizim Boshqaruvi</h2>
+              <p className="text-xs text-muted-foreground">
+                Admin kirish PIN-kodi va tizim sozlamalarini boshqarish.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* PIN Code Change Form */}
+              <form onSubmit={handleUpdatePin} className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-cyan-400" />
+                  <h3 className="text-sm font-bold text-foreground">Admin PIN-kodini O'zgartirish</h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                      Joriy PIN-kod:
+                    </label>
+                    <Input
+                      disabled
+                      value={adminPin}
+                      className="h-9 text-xs font-mono tracking-widest bg-muted"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-foreground block mb-1">
+                      Yangi PIN-kod (kamida 4 ta raqam):
+                    </label>
+                    <Input
+                      required
+                      type="password"
+                      maxLength={8}
+                      placeholder="Masalan: 7727 yoki 8888"
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value)}
+                      className="h-9 text-xs font-mono tracking-widest bg-surface"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs h-9"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  PIN-kodni Saqlash
+                </Button>
+              </form>
+
+              {/* Master Device Status */}
+              <div className="rounded-2xl border border-border/80 bg-card/60 p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4 text-emerald-400" />
+                  <h3 className="text-sm font-bold text-foreground">Asosiy Qurilma Holati</h3>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-2 leading-relaxed">
+                  <p>
+                    Ushbu brauzer Farkhadivich (Asosiy Boshqaruvchi) hisobi sifatida tasdiqlangan va doimiy kirishga ruxsat etilgan.
+                  </p>
+                  <p>
+                    Admin sessiyasini yopish uchun yuqoridagi <strong>"Chiqish"</strong> tugmasini bosing.
+                  </p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+                >
+                  <LogOut className="h-3.5 w-3.5 mr-1" />
+                  Admin Sessiyasini Yopish (Qulflash)
+                </Button>
               </div>
             </div>
           </div>

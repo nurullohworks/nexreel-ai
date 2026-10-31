@@ -34,24 +34,28 @@ export function UpgradeModal({
           </div>
           <div>
             <div className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-              Limit Tugadi
+              AI Kreditlar Cheklovi
             </div>
             <DialogTitle className="text-xl font-bold text-foreground">
-              Oylik tahlil limitingizga yetdingiz
+              AI Kreditlaringiz yetarli emas
             </DialogTitle>
           </div>
         </div>
 
         <DialogDescription className="text-xs text-muted-foreground leading-relaxed mt-2">
-          Reels videolarni cheklovsiz tahlil qilish, watermark radari va Meta algoritmi drayverlaridan to'liq foydalanish uchun Pro yoki Agency tarifiga o'ting.
+          Tanlangan AI model (Gemini, Claude yoki GPT-4o) token sarfiga mos kredit talab qiladi. Tahlillarni davom ettirish uchun Pro (1,200 Kredit) yoki Agency (4,000 Kredit) tarifiga o'ting!
         </DialogDescription>
 
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 text-xs space-y-1.5 mt-2">
           <div className="flex justify-between items-center text-foreground font-semibold">
-            <span>Pro Yaratuvchi:</span>
+            <span>Pro (1,200 AI Kredit):</span>
             <span className="text-cyan-400">190,000 so'm / oyiga</span>
           </div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="flex justify-between items-center text-foreground font-semibold">
+            <span>Agency (4,000 AI Kredit):</span>
+            <span className="text-emerald-400">490,000 so'm / oyiga</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/40">
             Telegram: <a href={TELEGRAM_PAYMENT.telegramUrl} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">@{TELEGRAM_PAYMENT.username}</a> · Tel: <a href={`tel:${TELEGRAM_PAYMENT.phone}`} className="text-foreground hover:underline font-mono">{TELEGRAM_PAYMENT.displayPhone}</a>
           </div>
         </div>

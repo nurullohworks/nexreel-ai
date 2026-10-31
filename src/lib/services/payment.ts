@@ -55,11 +55,35 @@ export const PLAN_PRICING: Record<PlanId, PlanPricing> = {
   },
 };
 
-export const TELEGRAM_PAYMENT = {
+export interface SupportContactConfig {
+  username: string;
+  phone: string;
+  displayPhone: string;
+  telegramUrl: string;
+}
+
+const SUPPORT_CONTACT_KEY = "nexreel.support_contact";
+
+export const DEFAULT_SUPPORT_CONTACT: SupportContactConfig = {
   username: "pray_boy",
   phone: "+998937607727",
   displayPhone: "+998 93 760 77 27",
   telegramUrl: "https://t.me/pray_boy",
+};
+
+export const TELEGRAM_PAYMENT = {
+  get username() {
+    return PaymentService.getSupportContact().username;
+  },
+  get phone() {
+    return PaymentService.getSupportContact().phone;
+  },
+  get displayPhone() {
+    return PaymentService.getSupportContact().displayPhone;
+  },
+  get telegramUrl() {
+    return PaymentService.getSupportContact().telegramUrl;
+  },
 };
 
 const MERCHANT_CONFIG_KEY = "nexreel.payment.merchant_config";
@@ -72,6 +96,40 @@ export const DEFAULT_MERCHANT_CONFIG: PaymentMerchantConfig = {
 };
 
 export class PaymentService {
+  /**
+   * Retrieves support contact config (Telegram username, phone)
+   */
+  static getSupportContact(): SupportContactConfig {
+    if (typeof window === "undefined") return DEFAULT_SUPPORT_CONTACT;
+    try {
+      const raw = localStorage.getItem(SUPPORT_CONTACT_KEY);
+      if (raw) return { ...DEFAULT_SUPPORT_CONTACT, ...JSON.parse(raw) };
+    } catch {}
+    return DEFAULT_SUPPORT_CONTACT;
+  }
+
+  /**
+   * Saves support contact config in localStorage
+   */
+  static saveSupportContact(contact: Partial<SupportContactConfig>): SupportContactConfig {
+    const current = this.getSupportContact();
+    const cleanUsername = (contact.username || current.username).replace("@", "").trim();
+    const phone = (contact.phone || current.phone).trim();
+    const displayPhone = (contact.displayPhone || phone).trim();
+    const updated: SupportContactConfig = {
+      username: cleanUsername,
+      phone,
+      displayPhone,
+      telegramUrl: `https://t.me/${cleanUsername}`,
+    };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(SUPPORT_CONTACT_KEY, JSON.stringify(updated));
+      } catch {}
+    }
+    return updated;
+  }
+
   /**
    * Retrieves merchant configuration (Click / Payme IDs)
    */

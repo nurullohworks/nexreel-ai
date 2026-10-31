@@ -49,12 +49,13 @@ function extractReelShortcode(url: string): string | null {
 }
 
 function Analyze() {
-  const { canAnalyze, addAnalysis, instagramAccount } = useAppStore();
+  const { canAnalyze, addAnalysis, instagramAccount, platformSettings } = useAppStore();
   const { t } = useI18n();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Tab mode: 'upload' or 'link'
+  const isLinkEnabled = platformSettings?.enableInstagramLink !== false;
   const [mode, setMode] = useState<"upload" | "link">("upload");
 
   // File Upload State
@@ -74,6 +75,19 @@ function Analyze() {
 
   const baselineViews = instagramAccount?.avgReelViews || 2000;
   const detectedShortcode = extractReelShortcode(instagramUrl.trim());
+
+  const handleFillSampleReel = () => {
+    if (!isLinkEnabled) {
+      toast.info("Instagram Link tahlili admin tomonidan vaqtincha to'xtatilgan.");
+      return;
+    }
+    setMode("link");
+    setInstagramUrl("https://www.instagram.com/reel/C8XYZ_ViralReelSample/");
+    setNiche("business");
+    toast.success("Namunaviy Instagram Reel kiritildi!", {
+      description: "Endi quyidagi 'Reelsni Tahlil Qilish' tugmasini bosing.",
+    });
+  };
 
   const pick = (f: File | undefined) => {
     if (!f) return;
@@ -226,6 +240,57 @@ function Analyze() {
 
         {!running ? (
           <>
+            {/* Onboarding Guide & Fast Demo Card for New Users */}
+            <div className="mt-5 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-card to-card p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">
+                    Tezkor Qadamlar & Yo'riqnoma
+                  </span>
+                  <h4 className="text-sm font-bold text-foreground">
+                    NEXREEL AI'dan qanday foydalaniladi?
+                  </h4>
+                </div>
+                {isLinkEnabled && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleFillSampleReel}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold text-xs h-8 shadow-sm shrink-0"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    🧪 Namunaviy Reel Bilan Sinash (1-klikda)
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground pt-1">
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-surface/60 border border-border/50">
+                  <span className="h-5 w-5 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                    1
+                  </span>
+                  <span className="line-clamp-2">Reels linki yoki video yuklang</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-surface/60 border border-border/50">
+                  <span className="h-5 w-5 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                    2
+                  </span>
+                  <span className="line-clamp-2">Meta 5-drayver diagnostikasi</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-surface/60 border border-border/50">
+                  <span className="h-5 w-5 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                    3
+                  </span>
+                  <span className="line-clamp-2">5x Virusli Hook & Ssenariy</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-surface/60 border border-border/50">
+                  <span className="h-5 w-5 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                    4
+                  </span>
+                  <span className="line-clamp-2">1-klikda A4 PDF Audit oling</span>
+                </div>
+              </div>
+            </div>
+
             {/* Input Mode Selector: Upload File VS Instagram URL */}
             <div className="mt-6 flex rounded-2xl border border-border/80 bg-surface/40 p-1.5">
               <button
@@ -244,9 +309,13 @@ function Analyze() {
 
               <button
                 type="button"
-                onClick={() => setMode("link")}
+                disabled={!isLinkEnabled}
+                onClick={() => {
+                  if (isLinkEnabled) setMode("link");
+                }}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                  !isLinkEnabled && "opacity-50 cursor-not-allowed",
                   mode === "link"
                     ? "bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 text-pink-300 border border-pink-500/40 shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -254,9 +323,15 @@ function Analyze() {
               >
                 <Instagram className="h-4 w-4 text-pink-400" />
                 <span>2. Instagram Reels Havolasi (URL)</span>
-                <span className="text-[9px] font-mono bg-pink-500/20 text-pink-300 px-1.5 py-0.2 rounded-full border border-pink-500/30">
-                  Yangi
-                </span>
+                {isLinkEnabled ? (
+                  <span className="text-[9px] font-mono bg-pink-500/20 text-pink-300 px-1.5 py-0.2 rounded-full border border-pink-500/30">
+                    Yangi
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-mono bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full border border-amber-500/30">
+                    O'chirilgan
+                  </span>
+                )}
               </button>
             </div>
 

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Send, Phone, ShieldCheck, KeyRound, Sparkles, Loader2 } from "lucide-react";
+import { Send, Phone, ShieldCheck, KeyRound, Sparkles, Loader2, Zap } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { StatCard } from "@/components/data/StatCard";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,11 @@ function Billing() {
     activateCode,
     activateGrantToken,
     recordAutoPayment,
+    creditsRemaining,
+    creditsTotal,
+    creditsUsed,
+    activeModelCost,
+    topUpCredits,
   } = useAppStore();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [promoInput, setPromoInput] = useState("");
@@ -127,23 +132,29 @@ function Billing() {
         <StatCard label="Joriy tarif" value={subscription.plan.toUpperCase()} hint={subscription.billingCycle} />
         <StatCard label="Holat" value={subscription.status} />
         <StatCard
-          label="Yangilanish sanasi"
-          value={new Date(subscription.renewsAt).toLocaleDateString()}
+          label="Mavjud AI Kreditlar"
+          value={`${(creditsRemaining ?? 4000).toLocaleString()}`}
+          hint={`Jami limit: ${(creditsTotal ?? 4000).toLocaleString()} kredit`}
         />
         <StatCard
-          label="Shu oydagi foydalanish"
-          value={`${subscription.usedThisMonth}/${subscription.monthlyLimit}`}
-          hint={`${remaining} ta tahlil qoldi`}
+          label="Sarflangan Kreditlar"
+          value={`${(creditsUsed ?? 0).toLocaleString()} Kredit`}
+          hint={`1 tahlil = ${activeModelCost} kredit`}
         />
       </div>
 
       <div className="surface-card mt-6 p-6">
-        <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-semibold">Tarifni boshqarish</h2>
-        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-semibold">AI Kreditlar Foydalanish Qoldig'i</h2>
+          <span className="text-xs font-mono font-bold text-cyan-400">
+            {Math.round(((creditsRemaining ?? 4000) / (creditsTotal || 4000)) * 100)}% qoldi
+          </span>
+        </div>
+        <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-primary"
+            className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 shadow-sm transition-all"
             style={{
-              width: `${Math.min(100, (subscription.usedThisMonth / subscription.monthlyLimit) * 100)}%`,
+              width: `${Math.min(100, Math.max(0, ((creditsRemaining ?? 4000) / (creditsTotal || 4000)) * 100))}%`,
             }}
           />
         </div>
@@ -153,6 +164,17 @@ function Billing() {
             onClick={() => setPaymentOpen(true)}
           >
             Tarifni oshirish (Telegram orqali)
+          </Button>
+          <Button
+            variant="outline"
+            className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10"
+            onClick={() => {
+              topUpCredits(500);
+              toast.success("+500 AI Kredit muvaffaqiyatli qo'shildi!");
+            }}
+          >
+            <Zap className="h-3.5 w-3.5 mr-1 text-yellow-400" />
+            +500 Kredit Qo'shish (Sinov)
           </Button>
           <Button asChild variant="outline">
             <Link to="/pricing">Tariflar jadvali</Link>

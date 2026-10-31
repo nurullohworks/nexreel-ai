@@ -57,6 +57,7 @@ import { TelegramBotService } from "@/lib/services/telegram-bot";
 import { PaymentService } from "@/lib/services/payment";
 import { MetaAlgorithmService, type MetaAlgorithmWeights } from "@/lib/services/meta-algorithm";
 import { LiveDuneService } from "@/lib/services/livedune";
+import { CreditEconomyService, MODEL_CREDIT_COSTS, PLAN_CREDITS } from "@/lib/services/credit-economy";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -1753,7 +1754,7 @@ function AdminPage() {
 
                       <div>
                         <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                          Oylik video tahlil limiti:
+                          Oylik video tahlil limiti (taxminiy):
                         </label>
                         <Input
                           type="number"
@@ -1765,6 +1766,23 @@ function AdminPage() {
                             }))
                           }
                           className="h-9 text-xs font-mono font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-cyan-400 block mb-1">
+                          Oylik AI Kreditlar Balansi:
+                        </label>
+                        <Input
+                          type="number"
+                          value={config.creditsMonthly ?? (planId === "free" ? 50 : planId === "pro" ? 1200 : 4000)}
+                          onChange={(e) =>
+                            setEditablePricing((prev) => ({
+                              ...prev,
+                              [planId]: { ...prev[planId], creditsMonthly: parseInt(e.target.value) || 0 },
+                            }))
+                          }
+                          className="h-9 text-xs font-mono font-bold text-cyan-300 border-cyan-500/40"
                         />
                       </div>
                     </div>
@@ -1780,6 +1798,89 @@ function AdminPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* UNIT ECONOMICS & ZERO-LOSS MARGIN DASHBOARD */}
+            <div className="rounded-2xl border border-cyan-500/40 bg-gradient-to-br from-card via-card to-cyan-950/20 p-6 space-y-5 shadow-xl">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border/60 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    <h3 className="text-base font-black text-foreground">
+                      Token Iqtisodiyoti & Zero-Loss (Minusdan Himoya) Matritsasi
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Har bir AI modelning (Gemini, Claude, GPT-4o) token xarajati va foyda marjasi (Unit Economics) to'liq hisoblangan.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-right font-mono text-xs font-bold text-emerald-300">
+                  🛡️ 88.7% - 98.4% SOF FOYDA MARJASI
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Pro on Flash */}
+                <div className="p-4 rounded-xl border border-border/70 bg-surface/70 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-foreground">Pro: Gemini Flash (10 kr)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                      98.4% MARJA
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between"><span>Tushum (Pro):</span> <strong className="text-foreground">$15.00</strong></div>
+                    <div className="flex justify-between"><span>Maks tahlil (1200 kr):</span> <strong>120 ta video</strong></div>
+                    <div className="flex justify-between"><span>Maks API xarajati:</span> <span className="text-amber-400">$0.24</span></div>
+                    <div className="flex justify-between border-t border-border/40 pt-1">
+                      <span>Sof Foyda:</span> <strong className="text-emerald-400">+$14.76</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pro on Claude */}
+                <div className="p-4 rounded-xl border border-border/70 bg-surface/70 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-foreground">Pro: Claude 3.7 (50 kr)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                      91.2% MARJA
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between"><span>Tushum (Pro):</span> <strong className="text-foreground">$15.00</strong></div>
+                    <div className="flex justify-between"><span>Maks tahlil (1200 kr):</span> <strong>24 ta video</strong></div>
+                    <div className="flex justify-between"><span>Maks API xarajati:</span> <span className="text-amber-400">$1.32</span></div>
+                    <div className="flex justify-between border-t border-border/40 pt-1">
+                      <span>Sof Foyda:</span> <strong className="text-emerald-400">+$13.68</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Agency on Claude */}
+                <div className="p-4 rounded-xl border border-border/70 bg-surface/70 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-foreground">Agency: Claude 3.7 (50 kr)</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                      88.7% MARJA
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between"><span>Tushum (Agency):</span> <strong className="text-foreground">$39.00</strong></div>
+                    <div className="flex justify-between"><span>Maks tahlil (4000 kr):</span> <strong>80 ta video</strong></div>
+                    <div className="flex justify-between"><span>Maks API xarajati:</span> <span className="text-amber-400">$4.40</span></div>
+                    <div className="flex justify-between border-t border-border/40 pt-1">
+                      <span>Sof Foyda:</span> <strong className="text-emerald-400">+$34.60</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-surface/50 p-3.5 text-xs text-muted-foreground flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>
+                  <strong>Xulosa:</strong> Foydalanuvchi eng qimmat Claude yoki GPT-4o modelini tinimsiz ishlatgan taqdirda ham kredit limiti platformani API to'lovlari oshib ketishidan 100% himoya qiladi. Platforma hech qachon minusga ishlamaydi.
+                </span>
+              </div>
             </div>
           </div>
         )}

@@ -38,6 +38,7 @@ import {
 } from "@/lib/app-store";
 import type { PlanId } from "@/lib/types";
 import { TelegramBotService } from "@/lib/services/telegram-bot";
+import { PaymentService } from "@/lib/services/payment";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -96,6 +97,21 @@ function AdminPage() {
   const [botTokenInput, setBotTokenInput] = useState(telegramBotConfig?.botToken || "");
   const [chatIdInput, setChatIdInput] = useState(telegramBotConfig?.chatId || "");
   const [isTestingBot, setIsTestingBot] = useState(false);
+
+  // Click & Payme Merchant Settings
+  const [clickServiceId, setClickServiceId] = useState(() => PaymentService.getMerchantConfig().clickServiceId);
+  const [clickMerchantId, setClickMerchantId] = useState(() => PaymentService.getMerchantConfig().clickMerchantId);
+  const [paymeMerchantId, setPaymeMerchantId] = useState(() => PaymentService.getMerchantConfig().paymeMerchantId);
+
+  const handleSaveMerchantConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    PaymentService.saveMerchantConfig({
+      clickServiceId: clickServiceId.trim(),
+      clickMerchantId: clickMerchantId.trim(),
+      paymeMerchantId: paymeMerchantId.trim(),
+    });
+    toast.success("Click va Payme merchant sozlamalari muvaffaqiyatli saqlandi!");
+  };
 
   // Pricing Form State
   const [editablePricing, setEditablePricing] = useState<Record<PlanId, PlanPricingConfig>>(pricingConfig);
@@ -942,6 +958,78 @@ function AdminPage() {
                   <li>Telegramda <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="text-sky-300 underline font-mono">@userinfobot</a> ga kiring va <code>/start</code> bosing. U bergan <b>Id</b> raqamini <b>Chat ID</b> maydoniga qo'ying.</li>
                   <li>O'zingiz yaratgan botingizga kirib <b>/start</b> tugmasini bosib qo'yishni unutmang!</li>
                 </ol>
+              </div>
+            </form>
+
+            {/* Click & Payme Merchant Gateway Config */}
+            <form onSubmit={handleSaveMerchantConfig} className="rounded-2xl border border-cyan-500/30 bg-card/60 p-5 backdrop-blur-md space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-cyan-400">
+                    <Sparkles className="h-4 w-4" />
+                    <span>Click & Payme To'lov Shlyuzi Sozlamalari</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground mt-0.5">
+                    Avtomatik To'lov Parametrlari (Merchant ID)
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Click va Payme orqali to'lovlar tushganda pulingiz to'g'ridan-to'g'ri ushbu hisoblarga tushadi
+                  </p>
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  Sozlamalarni Saqlash
+                </Button>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                    <span>Click Service ID:</span>
+                    <span className="text-[10px] text-sky-400 font-mono">my.click.uz</span>
+                  </label>
+                  <Input
+                    value={clickServiceId}
+                    onChange={(e) => setClickServiceId(e.target.value)}
+                    placeholder="Masalan: 32541"
+                    className="h-9 text-xs font-mono bg-surface/60"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                    <span>Click Merchant ID:</span>
+                    <span className="text-[10px] text-sky-400 font-mono">Click Merchant</span>
+                  </label>
+                  <Input
+                    value={clickMerchantId}
+                    onChange={(e) => setClickMerchantId(e.target.value)}
+                    placeholder="Masalan: 24890"
+                    className="h-9 text-xs font-mono bg-surface/60"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                    <span>Payme Merchant ID:</span>
+                    <span className="text-[10px] text-teal-400 font-mono">business.payme.uz</span>
+                  </label>
+                  <Input
+                    value={paymeMerchantId}
+                    onChange={(e) => setPaymeMerchantId(e.target.value)}
+                    placeholder="Masalan: 658932"
+                    className="h-9 text-xs font-mono bg-surface/60"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-[11px] text-cyan-200 flex items-center justify-between">
+                <span>⚡ <strong>Avtomatik dostup:</strong> Har qanday mijoz Click, Payme yoki karta orqali to'lov qilishi bilanoq, tizim 0 soniyada unga obuna huquqini ochadi.</span>
+                <span className="font-bold text-emerald-400 font-mono text-xs shrink-0 ml-2">FAOL</span>
               </div>
             </form>
 

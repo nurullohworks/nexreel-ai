@@ -16,6 +16,12 @@ import {
   DEFAULT_BOT_CONFIG,
 } from "./services/telegram-bot";
 import { ActivationService } from "./services/activation";
+import {
+  CreditEconomyService,
+  PLAN_CREDITS,
+  MODEL_CREDIT_COSTS,
+  type AIModelCostConfig,
+} from "./services/credit-economy";
 
 export interface AppUser {
   id?: string;
@@ -40,6 +46,7 @@ export interface PlanPricingConfig {
   priceUzSum: number;
   priceUsd: number;
   analysisLimit: number;
+  creditsMonthly: number;
 }
 
 export interface AdminAnnouncement {
@@ -97,12 +104,12 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   showGlobalBanner: true,
 };
 
-export const PLAN_LIMITS: Record<PlanId, number> = { free: 2, pro: 100, agency: 500 };
+export const PLAN_LIMITS: Record<PlanId, number> = { free: 5, pro: 120, agency: 400 };
 
 export const DEFAULT_PLAN_PRICING: Record<PlanId, PlanPricingConfig> = {
-  free: { id: "free", name: "Free Boshlang'ich", priceUzSum: 0, priceUsd: 0, analysisLimit: 2 },
-  pro: { id: "pro", name: "Pro Yaratuvchi", priceUzSum: 190000, priceUsd: 15, analysisLimit: 100 },
-  agency: { id: "agency", name: "Agency & SMM", priceUzSum: 490000, priceUsd: 39, analysisLimit: 500 },
+  free: { id: "free", name: "Free Boshlang'ich", priceUzSum: 0, priceUsd: 0, analysisLimit: 5, creditsMonthly: 50 },
+  pro: { id: "pro", name: "Pro Yaratuvchi", priceUzSum: 190000, priceUsd: 15, analysisLimit: 120, creditsMonthly: 1200 },
+  agency: { id: "agency", name: "Agency & SMM", priceUzSum: 490000, priceUsd: 39, analysisLimit: 400, creditsMonthly: 4000 },
 };
 
 export const DEFAULT_ANNOUNCEMENTS: AdminAnnouncement[] = [
@@ -148,6 +155,14 @@ export interface AppStore extends AppState {
   connectInstagram: (account: Partial<InstagramAccount>) => void;
   disconnectInstagram: () => void;
   canAnalyze: boolean;
+
+  // AI Credit Economy (Token-protective unit economics)
+  creditsRemaining: number;
+  creditsTotal: number;
+  creditsUsed: number;
+  activeModelCost: number;
+  deductCredits: (amount: number, reason?: string) => boolean;
+  topUpCredits: (amount: number) => void;
 
   // Admin & Expiry
   pricingConfig: Record<PlanId, PlanPricingConfig>;
@@ -209,6 +224,9 @@ const defaultState: AppState = {
     renewsAt: "2027-12-31T23:59:59.000Z",
     usedThisMonth: 0,
     monthlyLimit: PLAN_LIMITS.agency,
+    creditsTotal: 4000,
+    creditsRemaining: 4000,
+    creditsUsed: 0,
     billingCycle: "yearly",
   },
   instagramConnected: false,
@@ -286,10 +304,22 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<AppState>;
         const finalUser = parsed.user?.email === "creator@nexreel.ai" ? DEFAULT_USER : (parsed.user || persistentUser);
+        const sub = parsed.subscription || defaultState.subscription;
+        const plan = sub.plan || "agency";
+        const totalCredits = sub.creditsTotal ?? CreditEconomyService.getPlanCredits(plan);
+        const remainingCredits = sub.creditsRemaining ?? totalCredits;
+
         setState({
           ...defaultState,
           ...parsed,
           user: finalUser,
+          subscription: {
+            ...defaultState.subscription,
+            ...sub,
+            creditsTotal: totalCredits,
+            creditsRemaining: remainingCredits,
+            creditsUsed: sub.creditsUsed || 0,
+          },
         });
       } else {
         setState((prev) => ({
@@ -422,11 +452,26 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addAnalysis = useCallback(async (analysis: Analysis) => {
-    setState((s) => ({
-      ...s,
-      analyses: [analysis, ...s.analyses],
-      subscription: { ...s.subscription, usedThisMonth: s.subscription.usedThisMonth + 1 },
-    }));
+    const cost = CreditEconomyService.getModelCost(adminData.platformSettings?.aiModel).creditsCost;
+
+    setState((s) => {
+      const total = s.subscription.creditsTotal ?? CreditEconomyService.getPlanCredits(s.subscription.plan);
+      const currentRemaining = s.subscription.creditsRemaining ?? total;
+      const newRemaining = Math.max(0, currentRemaining - cost);
+      const newUsed = (s.subscription.creditsUsed || 0) + cost;
+
+      return {
+        ...s,
+        analyses: [analysis, ...s.analyses],
+        subscription: {
+          ...s.subscription,
+          usedThisMonth: s.subscription.usedThisMonth + 1,
+          creditsTotal: total,
+          creditsUsed: newUsed,
+          creditsRemaining: newRemaining,
+        },
+      };
+    });
 
     try {
       if (supabase) {
@@ -441,7 +486,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.log("Supabase insert fallback to local storage");
     }
-  }, [state.user]);
+  }, [state.user, adminData.platformSettings?.aiModel]);
 
   const setActualViews = useCallback((id: string, views: number) => {
     setState((s) => ({
@@ -604,9 +649,49 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const deductCredits = useCallback((amount: number, _reason?: string): boolean => {
+    let success = false;
+    setState((s) => {
+      const current = s.subscription.creditsRemaining ?? CreditEconomyService.getPlanCredits(s.subscription.plan);
+      if (current < amount) {
+        return s;
+      }
+      success = true;
+      const total = s.subscription.creditsTotal ?? CreditEconomyService.getPlanCredits(s.subscription.plan);
+      const used = (s.subscription.creditsUsed || 0) + amount;
+      const remaining = Math.max(0, current - amount);
+      return {
+        ...s,
+        subscription: {
+          ...s.subscription,
+          creditsTotal: total,
+          creditsUsed: used,
+          creditsRemaining: remaining,
+        },
+      };
+    });
+    return success;
+  }, []);
+
+  const topUpCredits = useCallback((amount: number) => {
+    setState((s) => {
+      const total = (s.subscription.creditsTotal || CreditEconomyService.getPlanCredits(s.subscription.plan)) + amount;
+      const remaining = (s.subscription.creditsRemaining ?? CreditEconomyService.getPlanCredits(s.subscription.plan)) + amount;
+      return {
+        ...s,
+        subscription: {
+          ...s.subscription,
+          creditsTotal: total,
+          creditsRemaining: remaining,
+        },
+      };
+    });
+  }, []);
+
   const setPlan = useCallback(
     (plan: PlanId, cycle: "monthly" | "yearly" = "monthly", customExpiry?: string) => {
       const limit = adminData.pricingConfig[plan]?.analysisLimit || PLAN_LIMITS[plan];
+      const credits = adminData.pricingConfig[plan]?.creditsMonthly || CreditEconomyService.getPlanCredits(plan);
       setState((s) => ({
         ...s,
         subscription: {
@@ -614,6 +699,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           plan,
           status: "active",
           monthlyLimit: limit,
+          creditsTotal: credits,
+          creditsRemaining: credits,
+          creditsUsed: 0,
           billingCycle: cycle,
           renewsAt: customExpiry || new Date(Date.now() + 30 * 86400000).toISOString(),
         },
@@ -950,6 +1038,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [adminData.pricingConfig, adminData.telegramBotConfig, setPlan, grantUserAccess, state.user?.email]
   );
 
+  const activeModelCost = CreditEconomyService.getModelCost(adminData.platformSettings?.aiModel).creditsCost;
+  const planCredits = CreditEconomyService.getPlanCredits(state.subscription.plan);
+  const creditsRemaining = state.subscription.creditsRemaining ?? planCredits;
+  const creditsTotal = state.subscription.creditsTotal ?? planCredits;
+  const creditsUsed = state.subscription.creditsUsed ?? 0;
+
   const value = useMemo<AppStore>(
     () => ({
       ...state,
@@ -963,7 +1057,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       toggleInstagram,
       connectInstagram,
       disconnectInstagram,
-      canAnalyze: state.subscription.usedThisMonth < state.subscription.monthlyLimit,
+      canAnalyze: creditsRemaining >= activeModelCost,
+
+      // AI Credit Economy
+      creditsRemaining,
+      creditsTotal,
+      creditsUsed,
+      activeModelCost,
+      deductCredits,
+      topUpCredits,
 
       // Admin & Expiry
       pricingConfig: adminData.pricingConfig,
@@ -1010,6 +1112,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       toggleInstagram,
       connectInstagram,
       disconnectInstagram,
+      creditsRemaining,
+      creditsTotal,
+      creditsUsed,
+      activeModelCost,
+      deductCredits,
+      topUpCredits,
       adminData,
       updatePricing,
       updatePlatformSettings,

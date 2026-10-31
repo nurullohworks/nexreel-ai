@@ -34,10 +34,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     isExpiringSoon,
     isExpired,
     announcements,
+    platformSettings,
   } = useAppStore();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+  const [globalBannerDismissed, setGlobalBannerDismissed] = useState(false);
 
   const isAdmin =
     (typeof window !== "undefined" &&
@@ -61,10 +63,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     ...(isAdmin ? [{ to: "/admin", label: t("nav_admin_panel", "Admin Panel"), icon: ShieldCheck, highlight: false }] : []),
   ];
 
-  // Agar foydalanuvchi bir marta kirsa yoki sessiya bo'lsa, uni to'xtatmaymiz - doimiy ochiq turadi
+  // Foydalanuvchi sessiyasini saqlash: agar admin qurilmasi bo'lsa, avtomatik Farkhadivich, aks holda yangi creator
   useEffect(() => {
     if (hydrated && !user) {
-      signIn("farkhadivichcreatorai@gmail.com", "Farkhadivich");
+      const isOwnerDevice =
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("nexreel_admin_device") === "true";
+      if (isOwnerDevice) {
+        signIn("farkhadivichcreatorai@gmail.com", "Farkhadivich");
+      } else {
+        signIn("creator@nexreel.ai", "Yangi Yaratuvchi");
+      }
     }
   }, [hydrated, user, signIn]);
 
@@ -72,7 +81,35 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* 1. Subscription Expiry Warning Banner */}
+      {/* 0. Maintenance Mode Banner (Admin yoqqanda) */}
+      {platformSettings?.maintenanceMode && (
+        <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-200 px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-400 animate-pulse shrink-0" />
+          <span>
+            {platformSettings.maintenanceMessage ||
+              "NEXREEL AI platformasida rejaviy yangilanish ketmoqda. Ayrim funksiyalar vaqtincha cheklangan bo'lishi mumkin."}
+          </span>
+        </div>
+      )}
+
+      {/* 1. Global Announcement / Feature Launch Banner */}
+      {platformSettings?.showGlobalBanner && platformSettings?.globalBannerText && !globalBannerDismissed && (
+        <div className="bg-gradient-to-r from-cyan-600/90 via-blue-600/90 to-purple-600/90 text-white px-4 py-1.5 text-xs font-semibold flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2 max-w-6xl mx-auto flex-1">
+            <Zap className="h-3.5 w-3.5 text-yellow-300 shrink-0 animate-bounce" />
+            <span className="truncate">{platformSettings.globalBannerText}</span>
+          </div>
+          <button
+            onClick={() => setGlobalBannerDismissed(true)}
+            className="p-1 rounded text-white/80 hover:text-white shrink-0"
+            aria-label="Yopish"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {/* 2. Subscription Expiry Warning Banner */}
       {(isExpiringSoon || isExpired) && subscription.plan !== "free" && (
         <div
           className={`px-4 py-2 text-xs font-semibold flex items-center justify-between gap-3 ${

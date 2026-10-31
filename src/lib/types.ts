@@ -144,4 +144,8 @@ export interface Subscription {
   usedThisMonth: number;
   monthlyLimit: number;
   billingCycle: "monthly" | "yearly";
+  // AI Credit Economy (Token-protective unit economics)
+  creditsTotal?: number;
+  creditsUsed?: number;
+  creditsRemaining?: number;
 }
